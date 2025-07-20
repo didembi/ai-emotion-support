@@ -143,12 +143,6 @@ The application includes comprehensive error handling and input validation. Test
 - Check that you're in the correct directory
 - Verify Python version is 3.8 or higher
 
-## 📞 Support Resources
-
-If you're in crisis or need immediate help:
-- **National Suicide Prevention Lifeline (US)**: 988
-- **Crisis Text Line**: Text HOME to 741741
-- **Emergency Services**: 911 (US) or your local emergency number
 
 ## 📄 License
 
