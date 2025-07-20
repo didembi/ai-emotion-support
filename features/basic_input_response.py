@@ -38,12 +38,13 @@ Respond with empathy, understanding, and gentle guidance. Keep your response und
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=400,
+            max_tokens=100,
             temperature=0.7
         )
         
         # Extract and return the generated message
-        support_message = response.choices[0].message.content.strip()
+        support_message = response.choices[0].message.content
+        support_message = support_message.strip() if support_message else "Üzgünüm bu sefer destek olamadım."
         return support_message
         
     except openai.AuthenticationError:
@@ -66,12 +67,12 @@ def validate_user_input(user_input: str) -> tuple[bool, Optional[str]]:
         tuple[bool, Optional[str]]: (is_valid, error_message)
     """
     if not user_input or not user_input.strip():
-        return False, "Please share your feelings or thoughts."
+        return False, "Lütfen duygularınızı veya düşüncelerinizi paylaşın."
     
     if len(user_input.strip()) < 10:
-        return False, "Please provide a bit more detail about how you're feeling."
+        return False, "Lütfen nasıl hissettiğiniz hakkında biraz daha detay verin."
     
     if len(user_input) > 1000:
-        return False, "Your message is quite long. Please try to keep it under 1000 characters."
+        return False, "Mesajınız oldukça uzun. Lütfen 1000 karakterin altında tutmaya çalışın."
     
-    return True, None 
+    return True, None
