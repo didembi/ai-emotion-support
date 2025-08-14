@@ -15,7 +15,6 @@ An AI-powered web application that provides immediate, personalized emotional su
 
 ### Prerequisites
 - Python 3.8 or higher
-- OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 
 ### Installation (Local)
 
