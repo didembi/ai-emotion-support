@@ -214,4 +214,4 @@ test_project/
 test_project/serviceAccountkey.json
 
 # Firebase Service Account Key
-ai-support-firebase.json
+#ai-support-firebase.json
