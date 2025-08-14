@@ -129,14 +129,6 @@ class EmotionalSupportAgent:
                 "\nYukarıdaki adımları takip ederek bütüncül ve empatik bir yanıt oluştur."
             )
             retrieved_context = ""
-            if self.retriever: 
-                print(f"DEBUG (agent_logic.py): RAG retriever kullanılıyor...")
-                docs = self.retriever.get_relevant_documents(user_input)
-                if docs:
-                    retrieved_context = "\n\nEk Bilgi Kaynakları (Kullanıcının sorusuyla ilgili):\n" + "\n---\n".join([doc.page_content for doc in docs])
-                    print(f"DEBUG (agent_logic.py): RAG ile çekilen kontekst: \n{retrieved_context[:200]}...")
-                else:
-                    print(f"DEBUG (agent_logic.py): RAG ile ilgili belge bulunamadı.")
             
             response = self.agent_executor.invoke({
                 "input": user_input, 
@@ -146,7 +138,7 @@ class EmotionalSupportAgent:
             })
             
             return {
-                "success": True, "response": response["output"], "plan_steps": plan_steps, # plan_steps hala debug için döndürülebilir
+                "success": True, "response": response["output"], "plan_steps": plan_steps, 
             }
         except Exception as e:
             print(f"Hata oluştu: {e}")

@@ -381,7 +381,7 @@ def process_agent_response(agent, form_data): # Burada 'agent' parametresini kul
                 st.session_state.last_response = response
                 
                 current_user_id = st.session_state.user_id
-                print(f"DEBUG (app.py): Kullanıcı ID'si (Kaydetme): {current_user_id}")
+                
                 
                 # --- VERİTABANI KAYIT BAŞLANGICI ---
                 conversation_entry = {
@@ -391,7 +391,6 @@ def process_agent_response(agent, form_data): # Burada 'agent' parametresini kul
                     "time": firestore.SERVER_TIMESTAMP 
                 }
                 save_success_conv = save_conversation(st.session_state.db_client, current_user_id, conversation_entry) 
-                print(f"DEBUG (app.py): Konuşma Firebase'e kaydedildi mi? {save_success_conv}")
 
                 mood_entry = {
                     "user_id": current_user_id,
