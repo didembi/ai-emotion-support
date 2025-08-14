@@ -4,15 +4,13 @@ from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
 
-# DEBUG: Bu dosyanın yüklendiğini gösteren ilk mesaj
-print(f"--- DEBUG (firebase_db.py): Modül yükleniyor: {__file__} ---")
 
 # .env dosyasının tam yolunu manuel olarak belirtiyoruz.
 project_root_for_db = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 dotenv_path_for_db = os.path.join(project_root_for_db, '.env')
 load_dotenv(dotenv_path=dotenv_path_for_db) 
 
-print(f"DEBUG (firebase_db.py): .env loaded from '{dotenv_path_for_db}'.")
+
 
 # Bu modül artık global bir 'db' değişkeni TUTMAYACAK.
 # initialize_firebase_app() doğrudan Firestore istemcisini döndürecek.

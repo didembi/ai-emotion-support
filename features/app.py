@@ -116,10 +116,6 @@ st.markdown("""
 <style>
     /* Global renk ve font değişkenleri - Tek bir yerde tanımlama */
     :root {
-        /* Temel Değişkenler */
-        /* Değişkenler sabit değerlere dönüştürüldü */
-        
-        /* Koyu tema değişkenleri kaldırıldı */
         
         /* Aktif Tema Değişkenleri - Sabit değerler */
         --bg-color: #F7F9FC;
@@ -230,7 +226,7 @@ st.markdown("""
     }
     
     .stSlider > div > div > div { 
-        background: var(--accent-color) !important; 
+        background: var(--card-big) !important; 
     }
 
     /* Sekme Navigasyonu */
