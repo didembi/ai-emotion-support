@@ -12,7 +12,8 @@ project_root = os.path.dirname(current_dir) # Bir seviye 'features'dan yukarı
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-
+__import__('pysqlite3')
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import streamlit as st
 import pandas as pd
 from streamlit_option_menu import option_menu
@@ -534,7 +535,7 @@ with st.sidebar:
                 st.error("Veritabanı sıfırlanamadı veya zaten mevcut değil.")
     
     st.markdown("---")
-    
+
 # --- HEADER BÖLÜMÜ ---
 # Header'ı tek parça olarak oluştur
 st.markdown("""
