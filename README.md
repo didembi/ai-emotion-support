@@ -17,7 +17,7 @@ An AI-powered web application that provides immediate, personalized emotional su
 - Python 3.8 or higher
 - OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 
-### Installation
+### Installation (Local)
 
 1. **Clone the repository**
    ```bash
@@ -52,20 +52,25 @@ An AI-powered web application that provides immediate, personalized emotional su
 
 5. **Run the application**
    ```bash
-   streamlit run app.py
+   streamlit run features/app.py
    ```
 
 6. **Open your browser**
    Navigate to `http://localhost:8501`
 
+## 🌐 Deploying on Streamlit Cloud
+
+1. Push your project to a public GitHub repository.
+2. Go to [Streamlit Cloud](https://streamlit.io/cloud) and sign in with GitHub.
+3. Click "New app", select your repo, set the main file path to `features/app.py`.
+4. Add your environment variables (like `OPENAI_API_KEY`) in the app settings.
+5. Click "Deploy" and your app will be live!
+
 ## 📖 How to Use
 
 1. **Share Your Feelings**: Use the large text area to describe how you're feeling, what's on your mind, or any emotional challenges you're facing.
-
 2. **Get Support**: Click "Get Emotional Support" to receive a personalized response from the AI.
-
 3. **Read and Reflect**: The AI will provide empathetic support, coping strategies, and gentle guidance.
-
 4. **Continue or Start Fresh**: Share more feelings or start a new session as needed.
 
 ## 🛠️ Configuration
@@ -89,30 +94,47 @@ You can customize the AI's behavior by modifying the system prompt in `features/
 This AI application provides emotional support but is **not a replacement for professional mental health care**. 
 
 - If you're experiencing a mental health crisis, please contact a professional immediately
-- For crisis support, call your local crisis hotline or emergency services
+- For crisis support, call your local Crisis hotline or emergency services
 - This tool is designed for general emotional support and self-reflection
 
 ## 🏗️ Project Structure
 
 ```
 ai-emotion-support/
-├── app.py                          # Main Streamlit application
+├── agents/                        # Agent logic and Firebase integration
+│   ├── __init__.py
+│   ├── agent_logic.py
+│   ├── firebase_db.py
+│   └── tools.py
+├── chroma_db/                     # Vector database files
+│   ├── ...
+├── data/                          # Text data for RAG
+│   ├── anxiety_management.txt
+│   ├── emotional_support.txt
+│   ├── mindfulness_techniques.txt
+│   └── stress_management.txt
 ├── features/
-│   ├── __init__.py                 # Package initialization
-│   └── basic_input_response.py     # Core AI interaction logic
-├── requirements.txt                # Python dependencies
-├── .env.example                    # Environment variables template
-├── README.md                       # This file
-├── idea.md                         # Project concept and vision
-├── user-flow.md                    # Detailed user experience flow
-└── tech-stack.md                   # Technology documentation
+│   ├── __init__.py                # Package initialization
+│   ├── app.py                     # Main Streamlit application
+│   ├── basic_input_response.py    # Core AI interaction logic
+│   └── requirements.txt           # Feature-specific requirements
+├── rag/                           # Retrieval-Augmented Generation service
+│   ├── README.md
+│   └── rag_service.py
+├── requirements.txt               # Python dependencies
+├── .env.example                   # Environment variables template
+├── README.md                      # This file
+├── idea.md                        # Project concept and vision
+├── user-flow.md                   # Detailed user experience flow
+├── tech-stack.md                  # Technology documentation
+└── teck-stack.md                  # (Typo, see tech-stack.md)
 ```
 
 ## 🧪 Development
 
 ### Running in Development Mode
 ```bash
-streamlit run app.py --server.port 8501 --server.address localhost
+streamlit run features/app.py --server.port 8501 --server.address localhost
 ```
 
 ### Testing
