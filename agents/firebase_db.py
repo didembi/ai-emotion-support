@@ -1,4 +1,4 @@
-# ai-emotion-support/agents/firebase_db.py - SON VE KESİN KOD (DEBUG'SIZ, GÜVENLİ DAĞITIM İÇİN)
+# ai-emotion-support/agents/firebase_db.py - NİHAİ KOD (HEM YEREL HEM CLOUD UYUMLU)
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
@@ -16,41 +16,60 @@ db = None
 def initialize_firebase_app():
     """
     Firebase Admin SDK'yı başlatır ve Firestore istemcisini atar.
-    Firebase Service Account JSON içeriğini doğrudan ortam değişkeninden (FIREBASE_CREDENTIALS) okur.
+    Ortam değişkenlerinden kimlik bilgilerini iki farklı yolla dener:
+    1. FIREBASE_CREDENTIALS (doğrudan JSON içeriği, Streamlit Secrets için)
+    2. FIREBASE_CREDENTIALS_PATH (JSON dosya yolu, yerel .env için)
     """
     global db 
 
     if firebase_admin._apps:
-        # Eğer uygulama zaten başlatılmışsa, mevcut Firestore istemcisini döndür.
         print("Firebase uygulaması zaten başlatılmış. Mevcut istemci döndürülüyor.")
         db = firestore.client()
         return db
 
-    # Firebase kimlik bilgilerini doğrudan JSON string'inden alıyoruz
-    # Bu değişkenin Streamlit Cloud'daki Secrets bölümünde veya .env'de (yerelde test için) tanımlı olduğundan emin olun.
+    # 1. Yöntem: Ortam değişkeninde doğrudan JSON içeriği ara (Streamlit Secrets için)
     firebase_credentials_json_str = os.getenv("FIREBASE_CREDENTIALS") 
     
-    if not firebase_credentials_json_str:
-        print(f"HATA: 'FIREBASE_CREDENTIALS' ortam değişkeni (Streamlit Secrets'ta) tanımlı değil. Firebase başlatılamıyor.")
-        db = None
-        return None
+    if firebase_credentials_json_str:
+        try:
+            cred_dict = json.loads(firebase_credentials_json_str)
+            cred = credentials.Certificate(cred_dict) 
+            firebase_admin.initialize_app(cred)
+            db = firestore.client() 
+            print("Firebase bağlantısı başarılı! (JSON içerik yöntemi)")
+            return db
+        except Exception as e:
+            print(f"HATA: Firebase JSON içeriği geçersiz veya bağlantı sorunu: {e}")
+            db = None
+            return None
+    
+    # 2. Yöntem: Ortam değişkeninde JSON dosya yolu ara (Yerel .env için)
+    firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    if firebase_credentials_path:
+        absolute_credentials_path = os.path.abspath(firebase_credentials_path)
+        
+        if os.path.exists(absolute_credentials_path):
+            try:
+                cred = credentials.Certificate(absolute_credentials_path)
+                firebase_admin.initialize_app(cred)
+                db = firestore.client() 
+                print("Firebase bağlantısı başarılı! (Dosya yolu yöntemi)")
+                return db
+            except Exception as e:
+                print(f"HATA: Firebase bağlantısı sırasında bir sorun oluştu (dosya yolu yöntemi): {e}")
+                db = None
+                return None
+        else:
+            print(f"HATA: Firebase kimlik bilgileri dosyası '{absolute_credentials_path}' bulunamadı. Lütfen yolu kontrol edin.")
+            db = None
+            return None
+    
+    # Her iki yöntem de başarısız olursa
+    print(f"HATA: Firebase kimlik bilgileri (.env veya Streamlit Secrets'ta FIREBASE_CREDENTIALS veya FIREBASE_CREDENTIALS_PATH) tanımlı değil. Firebase başlatılamıyor.")
+    db = None
+    return None
 
-    try:
-        # JSON string'ini Python sözlüğüne dönüştür
-        cred_dict = json.loads(firebase_credentials_json_str)
-        cred = credentials.Certificate(cred_dict) # Dictionary'den kimlik bilgisi oluştur
-
-        firebase_admin.initialize_app(cred)
-        db = firestore.client() 
-        print("Firebase bağlantısı başarılı!")
-        return db # Başarılı durumda db istemcisini döndür
-    except Exception as e:
-        print(f"HATA: Firebase bağlantısı sırasında bir sorun oluştu: {e}")
-        db = None
-        return None
-
-# --- CRUD Fonksiyonları ---
-# Bu fonksiyonlar artık ilk argüman olarak bir db_client nesnesi alacak.
+# --- CRUD Fonksiyonları (aynı kalır) ---
 def save_conversation(db_client, user_id: str, conversation_entry: dict):
     if db_client: 
         try:

@@ -1,100 +1,103 @@
-
+# ai-emotion-support/features/app.py - SON VE KESİN KOD (TÜM İYİLEŞTİRMELER DAHİL)
+# --- Gerekli importlar ve proje yolu tanımlama ---
 import sys
 import os
 import random
 from datetime import datetime
-
-# Projenin kök dizinini sys.path'e ekler.
-current_file_path = os.path.abspath(__file__)
-current_dir = os.path.dirname(current_file_path)
-project_root = os.path.dirname(current_dir) # Bir seviye 'features'dan yukarı
-
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-
-import streamlit as st
-import pandas as pd
-from streamlit_option_menu import option_menu
-from dotenv import load_dotenv # .env dosyasını yüklemek için
-
-# Modern UI bileşenleri için ek kütüphaneler
 import json
 import requests
 from streamlit_lottie import st_lottie
 import streamlit.components.v1 as components
 
-# firebase_db'den sadece fonksiyonları ve initialize_firebase_app'ı import ediyoruz.
+
+# Projenin kök dizinini sys.path'e ekler.
+current_file_path = os.path.abspath(__file__)
+current_dir = os.path.dirname(current_file_path)
+project_root = os.path.dirname(current_dir) 
+
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import streamlit as st
+import pandas as pd
+from streamlit_option_menu import option_menu
+from dotenv import load_dotenv 
+
+# Firebase ve Agent/RAG modüllerini import ediyoruz.
 from agents.firebase_db import save_conversation, load_conversations, delete_user_data, save_mood_entry, load_mood_history, firestore, initialize_firebase_app 
 from agents.agent_logic import EmotionalSupportAgent 
-from rag.rag_service import get_rag_retriever
-import agents.agent_logic as al_module # agent_logic modülünü import et
-import streamlit.components.v1 as components
+from rag.rag_service import get_rag_retriever 
+
+
+# Ortam değişkenlerini yükle
+dotenv_path = os.path.join(project_root, '.env')
+load_dotenv(dotenv_path=dotenv_path) 
+
+
+# --- LOTTIE ANIMASYON YÜKLEYİCİ ---
+def load_lottieurl(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
 
 
 # --- Firebase Bağlantısını Başlatma ---
-# Firebase uygulamasını Streamlit'in kaynak önbellekleme mekanizması ile başlat
 @st.cache_resource
-def setup_firebase_connection():
-    """Firebase bağlantısını kurar ve Firestore istemcisini döndürür."""
-    # Firebase bağlantısını başlat
-    db_client = initialize_firebase_app() 
-    return db_client 
+def get_firebase_db_client():
+    return initialize_firebase_app() 
 
-# Uygulama başladığında Firebase'i başlat ve istemcisini al
-firebase_db_client = setup_firebase_connection()
+firebase_db_client_instance = get_firebase_db_client()
 
-# Firebase istemcisinin başarılı olup olmadığını kontrol et ve session_state'e kaydet
-if "db_client" not in st.session_state:
-    st.session_state.db_client = firebase_db_client
-
-if st.session_state.db_client is None:
-    st.error("❌ Firebase bağlantısı kurulamadı! Lütfen .env dosyasını ve anahtar yolunu kontrol edin.")
+if firebase_db_client_instance is None:
+    st.error("❌ Firebase bağlantısı kurulamadı! Lütfen .env dosyanızı ve anahtar yolunuzu kontrol edin.")
     st.stop()
 
 
 # --- AGENT BAŞLATMA (CACHE-UYUMLU) ---
-# Agent'ı Firebase bağlantısı kurulduktan ve hata kontrolü yapıldıktan sonra başlatmalıyız.
 @st.cache_resource
 def initialize_agent():
-    """Sadece agent nesnesini oluşturur ve return eder. Arayüze dokunmaz."""
     api_key = os.getenv("GOOGLE_API_KEY") 
     if not api_key: 
         return None
     try:
-        # RAG retriever'ı başlat
         project_root_for_app = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         data_directory_path = os.path.join(project_root_for_app, "data")
         rag_retriever = get_rag_retriever(data_directory=data_directory_path)
 
         if rag_retriever is None:
-            agent_instance = EmotionalSupportAgent(api_key, retriever=None)
+            agent_instance = EmotionalSupportAgent(api_key, retriever=None) 
         else:
-            agent_instance = EmotionalSupportAgent(api_key, retriever=rag_retriever)
+            agent_instance = EmotionalSupportAgent(api_key, retriever=rag_retriever) 
         
         return agent_instance
     except Exception as e:
-        return e
+        st.exception(e) # Streamlit'te hatayı göster
+        return None
 
-# Uygulama başladığında agent'ı başlat
-agent_instance = initialize_agent()
+agent_instance = initialize_agent() 
 if agent_instance is None:
-    st.error("⚠️ GOOGLE_API_KEY bulunamadı. Lütfen .env dosyanızı kontrol edin."); st.stop()
-elif isinstance(agent_instance, Exception):
-    st.error(f"❌ Agent başlatılırken bir hata oluştu: {agent_instance}"); st.stop()
+    st.error("⚠️ Agent başlatılırken bir sorun oluştu veya GOOGLE_API_KEY bulunamadı. Lütfen kontrol edin."); st.stop()
 
 
 # --- SAYFA YAPILANDIRMASI VE TASARIM ---
 st.set_page_config(
     page_title="AI Destek Aracı",
-    page_icon="💙",
+    page_icon="💙", # Sayfa ikonunu daha genel bir emojiye çevirdim
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Sayfa yüklendiğinde localStorage'dan tema tercihini kontrol eden JavaScript
+# --- TEMA YÖNETİMİ ---
+if 'is_dark_mode' not in st.session_state:
+    st.session_state.is_dark_mode = False 
 
-st.markdown("""
+def toggle_theme_mode():
+    st.session_state.is_dark_mode = not st.session_state.is_dark_mode
+
+# JavaScript ile localStorage'dan tema tercihini okuyup uygulamak
+# Bu JS kodu, Streamlit tarafından render edilen HTML'e eklenir.
+components.html("""
 <script>
     // Sayfa yüklendiğinde localStorage'dan tema tercihini kontrol et
     window.addEventListener('load', function() {
@@ -107,23 +110,61 @@ st.markdown("""
             }
         }
         // Butonun simgesini ilk yüklemede doğru ayarla
+        // QuerySelector ile elementi bul, çünkü Streamlit'in iç yapısı değişebilir.
         const themeButtonElement = document.querySelector('[data-testid="stButton"] button[key="theme_toggle_button"]');
         if (themeButtonElement) {
             themeButtonElement.innerText = document.documentElement.classList.contains('dark-mode-active') ? '☀️' : '🌙';
         }
     });
+    
+    // Tema değişikliğini izle ve localStorage'a kaydet, buton simgesini güncelle
+    // MutationObserver, DOM'daki sınıf değişikliklerini yakalar.
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'class') {
+                const isDarkMode = document.documentElement.classList.contains('dark-mode-active');
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+                
+                const themeButtonElement = document.querySelector('[data-testid="stButton"] button[key="theme_toggle_button"]');
+                if (themeButtonElement) {
+                    themeButtonElement.innerText = isDarkMode ? '☀️' : '🌙';
+                }
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
 </script>
+""", height=0, width=0)
+
+# --- MODERN CSS ---
+# CSS değişkenleri ve stiller burada tanımlanır.
+st.markdown("""
 <style>
     /* Global renk ve font değişkenleri - Tek bir yerde tanımlama */
     :root {
+        /* Temel Değişkenler - Açık Tema */
+        --bg-color-light: #F7F9FC;
+        --text-color-light: #1A1A1A;
+        --accent-color-light: #5B5FE0;
+        --user-bubble-bg-light: #E8ECF3;
+        --card-bg-light: #FFFFFF;
+        --header-bg-light: linear-gradient(135deg, #5B5FE0, #7F4CD9);
         
-        /* Aktif Tema Değişkenleri - Sabit değerler */
-        --bg-color: #F7F9FC;
-        --text-color: #1A1A1A;
-        --accent-color: #5B5FE0;
-        --user-bubble-bg: #E8ECF3;
-        --card-bg: #FFFFFF;
-        --header-bg: linear-gradient(135deg, #5B5FE0, #7F4CD9);
+        /* Temel Değişkenler - Koyu Tema */
+        --bg-color-dark: #121421;
+        --text-color-dark: #EAEAEA;
+        --accent-color-dark: #A08CFF;
+        --user-bubble-bg-dark: #2C2F3A;
+        --card-bg-dark: #1E2130;
+        --header-bg-dark: linear-gradient(135deg, #7F4CD9, #5B5FE0);
+        
+        /* Aktif Tema Değişkenleri - Varsayılan olarak açık tema */
+        --bg-color: var(--bg-color-light);
+        --text-color: var(--text-color-light);
+        --accent-color: var(--accent-color-light);
+        --user-bubble-bg: var(--user-bubble-bg-light);
+        --card-bg: var(--card-bg-light);
+        --header-bg: var(--header-bg-light);
         
         /* Diğer Değişkenler */
         --border-radius: 12px;
@@ -142,32 +183,39 @@ st.markdown("""
     
     /* Ana Uygulama Temeli */
     .stApp {
-        background-color: var(--bg-color); /* Aktif tema değişkeni */
+        background-color: var(--bg-color);
         font-family: var(--font-primary);
-        color: var(--text-color); /* Aktif tema değişkeni */
-        padding-top: 0 !important; /* Streamlit'in default paddingini kaldır */
+        color: var(--text-color);
+        padding-top: 0 !important;
     }
-    /* Streamlit'in main content container'ı */
-    .st-emotion-cache-z5fcl4 { /* Bu class değişebilir, Streamlit güncellemeleriyle kontrol etmek gerek */
+    .st-emotion-cache-z5fcl4 { /* Streamlit'in ana içerik container'ı */
         padding-top: 0 !important;
     }
     
-    /* Tema değişikliği kaldırıldı */
+    /* Koyu Tema Aktif Olduğunda */
+    .dark-mode-active { /* html elementine eklenen sınıf */
+        --bg-color: var(--bg-color-dark);
+        --text-color: var(--text-color-dark);
+        --accent-color: var(--accent-color-dark);
+        --user-bubble-bg: var(--user-bubble-bg-dark);
+        --card-bg: var(--card-bg-dark);
+        --header-bg: var(--header-bg-dark);
+    }
     
     /* Dashboard Header */
     .dashboard-header {
         background: var(--header-bg);
         padding: 1.5rem; 
-        border-radius: 0; /* Header'ı tam genişlikte yapar */
+        border-radius: 0;
         color: white;
         margin-bottom: 2rem; 
         box-shadow: var(--shadow-soft);
         text-align: center;
-        position: fixed; /* Header'ı sabitler */
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 1000; /* Diğer içeriklerin üzerinde görünmesini sağlar */
+        z-index: 1000;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -177,10 +225,10 @@ st.markdown("""
         font-size: 2.5rem; 
         font-weight: 700; 
         margin: 0;
-        display: inline-flex; /* Icon ile hizalama */
+        display: inline-flex;
         align-items: center; 
         gap: 1rem;
-        color: white; /* Hem açık hem koyu temada beyaz metin */
+        color: white;
     }
     
     .dashboard-header p { 
@@ -226,35 +274,32 @@ st.markdown("""
     }
     
     .stSlider > div > div > div { 
-        background: var(--card-big) !important; 
+        background: var(--accent-color) !important; 
     }
 
     /* Sekme Navigasyonu */
-    /* option_menu'yu saran div */
-    div.st-emotion-cache-1g8w9ub { /* Bu class Streamlit güncellemeleriyle değişebilir */
+    div.st-emotion-cache-1g8w9ub {
         padding: 0 !important;
         background-color: transparent !important;
-        margin-top: 80px; /* Sabit header yüksekliği kadar boşluk bırak */
-        border-radius: 0; /* Sekmelerin alt köşelerini de tam yapıştırmak için */
+        margin-top: 80px;
+        border-radius: 0;
     }
     
-    /* Her bir sekme linki */
-    .st-emotion-cache-11r0f6z { /* Bu class Streamlit güncellemeleriyle değişebilir */
+    .st-emotion-cache-11r0f6z {
         color: var(--text-color) !important;
         font-size: 16px !important;
         text-align: center !important;
         margin: 0px !important;
-        background-color: var(--card-bg) !important; /* Sekme arka planı da kart rengiyle aynı olsun */
+        background-color: var(--card-bg) !important;
         border-bottom: 3px solid transparent !important;
         transition: all 0.3s ease !important;
         padding: 1rem 1.5rem !important;
     }
     
-    /* Seçili sekme linki */
-    .st-emotion-cache-10mte23 { /* Bu class Streamlit güncellemeleriyle değişebilir */
+    .st-emotion-cache-10mte23 {
         border-bottom: 3px solid var(--accent-color) !important;
         background-color: var(--card-bg) !important;
-        color: var(--accent-color) !important; /* Seçili sekmenin rengini vurgu rengi yap */
+        color: var(--accent-color) !important;
         font-weight: 600 !important;
     }
 
@@ -262,14 +307,14 @@ st.markdown("""
     [data-testid="stChatMessageContent"] {
         border-radius: 18px; 
         border: none; 
-        padding: 1rem 1.5rem; /* Daha geniş padding */
-        box-shadow: 0 3px 10px rgba(0,0,0,0.08); /* Daha belirgin gölge */
-        margin: 0.5rem 0; /* Mesajlar arası boşluk */
+        padding: 1rem 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        margin: 0.5rem 0;
     }
     
     [data-testid="stChatMessageContent"] p { 
         font-size: 1rem; 
-        line-height: 1.6; /* Daha rahat okunabilirlik */
+        line-height: 1.6;
     }
     
     div[data-testid="stChatMessage"]:has(div[data-testid="stAvatarIcon-user"]) [data-testid="stChatMessageContent"] { 
@@ -284,7 +329,7 @@ st.markdown("""
 
     /* Butonlar */
     .stButton > button {
-        background: var(--accent-color) !important; /* Buton arka planını vurgu rengi yap */
+        background: var(--accent-color) !important;
         color: white !important;
         border: none !important;
         border-radius: var(--border-radius) !important;
@@ -299,9 +344,29 @@ st.markdown("""
         opacity: 0.9;
     }
     
-    /* Tema Değiştirme Butonu kaldırıldı */
+    /* Tema Değiştirme Butonu */
+    [key="theme_toggle_button"] {
+        background: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border: 1px solid rgba(0,0,0,0.1) !important;
+        border-radius: 50% !important;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 1.2rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: var(--shadow-soft) !important;
+    }
     
-    /* Ek bilgi kutusu (yeni eklendi) */
+    [key="theme_toggle_button"]:hover {
+        transform: scale(1.05) !important;
+        box-shadow: var(--shadow-hover) !important;
+    }
+    
+    /* Ek bilgi kutusu */
     .info-box {
         background-color: var(--card-bg);
         padding: 15px;
@@ -317,9 +382,9 @@ st.markdown("""
         color: var(--accent-color);
     }
 
-    /* Sabit header altındaki boşluk (içerik için) */
+    /* Sabit header altındaki boşluk */
     div[data-testid="stVerticalBlock"] {
-        padding-top: 80px; /* Header'ın yüksekliği kadar boşluk bırak */
+        padding-top: 80px;
     }
 
     /* Genel input alanlarının border radius'unu uyumlu hale getirme */
@@ -332,189 +397,66 @@ st.markdown("""
 
 </style>
 
-<!-- JavaScript kodları tamamen kaldırıldı -->
+<!-- Streamlit'te çalışacak şekilde JavaScript kodu -->  
+<script>
+    window.addEventListener('load', function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark-mode-active');
+            } else {
+                document.documentElement.classList.remove('dark-mode-active');
+            }
+        }
+        const themeButtonElement = document.querySelector('[data-testid="stButton"] button[key="theme_toggle_button"]');
+        if (themeButtonElement) {
+            themeButtonElement.innerText = document.documentElement.classList.contains('dark-mode-active') ? '☀️' : '🌙';
+        }
+    });
+    
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'class') {
+                const isDarkMode = document.documentElement.classList.contains('dark-mode-active');
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+                
+                const themeButtonElement = document.querySelector('[data-testid="stButton"] button[key="theme_toggle_button"]');
+                if (themeButtonElement) {
+                    themeButtonElement.innerText = isDarkMode ? '☀️' : '🌙';
+                }
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
 </script>
 """, unsafe_allow_html=True)
 
 
-
-# Bu blok yukarıda zaten tanımlandı, bu ikinci tanımlama gereksiz ve kaldırılmalı
-# Aşağıdaki kod bloğu, yukarıda 'initialize_agent' fonksiyonu ve 'agent_instance' değişkeni
-# zaten tanımlandığı için kaldırılıyor. Bu tekrarlanan kod, hatalara neden olabilir.
-
-# --- YARDIMCI FONKSİYONLAR ---
-# Lottie animasyonlarını yüklemek için fonksiyon
-def load_lottieurl(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
-def show_emotion_input_form():
-    st.subheader("💭 Duygularınızı Paylaşın")
-    col1, col2 = st.columns([2, 1], gap="large")
-    with col1:
-        user_input = st.text_area("Nasıl hissediyorsunuz?", height=150, placeholder="Bugün kendimi çok yorgun hissediyorum...", key="user_emotion_input")
-        
-        # Text box altında duygu durumu ve şiddeti
-        emotion_col1, emotion_col2 = st.columns(2)
-        with emotion_col1:
-            selected_emotion = st.selectbox("Duygu Durumu", ["Belirsiz", "Stres", "Endişe", "Üzüntü", "Kızgınlık", "Yorgunluk", "Yalnızlık", "Motivasyon Kaybı"])
-        with emotion_col2:
-            intensity = st.slider("Duygu Şiddeti", 1, 5, 3)
-    
-    with col2:
-        st.subheader("🎯 İhtiyaçlarınız")
-        needs = st.multiselect("Size nasıl yardımcı olabilirim?", ["Anlaşılmak", "Teselli", "Pratik Çözüm", "Rahatlamak", "Motivasyon", "Profesyonel Yönlendirme"])
-        
-        # Ek bilgiler bölümü
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 10px; border-radius: 8px; margin-top: 10px; border-left: 3px solid var(--accent-color);'>
-        <p style='margin: 0; font-size: 0.9rem;'><strong>İpucu:</strong> Duygularınızı ve düşüncelerinizi detaylı paylaşmak, daha kişiselleştirilmiş destek almanıza yardımcı olur.</p>
-        </div>""", unsafe_allow_html=True)
-        
-    return {"user_input": user_input, "selected_emotion": selected_emotion, "intensity": intensity, "needs": needs}
-
-def process_agent_response(agent, form_data): # Burada 'agent' parametresini kullanmaya devam ediyoruz, bu iyi
-    if st.button("💙 Agent'tan Destek Al", type="primary", use_container_width=True, disabled=not form_data['user_input'].strip()):
-        with st.spinner("🤖 Agent düşünüyor..."):
-            response = agent.process_user_input(form_data['user_input'], emotion_data=form_data)
-            if response['success']:
-                st.session_state.last_response = response
-                
-                current_user_id = st.session_state.user_id
-                
-                
-                # --- VERİTABANI KAYIT BAŞLANGICI ---
-                conversation_entry = {
-                    "user_id": current_user_id,
-                    "user_message": form_data['user_input'],
-                    "ai_response": response['response'],
-                    "time": firestore.SERVER_TIMESTAMP 
-                }
-                save_success_conv = save_conversation(st.session_state.db_client, current_user_id, conversation_entry) 
-
-                mood_entry = {
-                    "user_id": current_user_id,
-                    "zaman": firestore.SERVER_TIMESTAMP,
-                    "duygu_siddeti": form_data['intensity'],
-                    "selected_emotion": form_data['selected_emotion']
-                }
-                save_success_mood = save_mood_entry(st.session_state.db_client, current_user_id, mood_entry)
-                # --- VERİTABANI KAYIT SONU ---
-
-                # Streamlit session_state'e de kaydetmeye devam et (arayüzde anlık göstermek için)
-                if 'history' not in st.session_state: st.session_state.history = []
-                st.session_state.history.append({"user": form_data['user_input'], "ai": response['response'], "time": datetime.now()})
-                
-                if 'mood_history' not in st.session_state: st.session_state.mood_history = []
-                st.session_state.mood_history.append({
-                    "zaman": datetime.now(),
-                    "duygu_siddeti": form_data['intensity'],
-                    "selected_emotion": form_data['selected_emotion']
-                })
-                # Session state güncellendi
-
-            else:
-                st.error(response.get('fallback_response', "Bir hata oluştu."))
-
-def show_agent_response():
-    if 'last_response' in st.session_state and st.session_state.last_response:
-        response = st.session_state.last_response
-        st.divider()
-        st.subheader("✨ Kişiselleştirilmiş Destek")
-        st.markdown(response['response'])
-        
-        # Agent cevabına göre geri dönüş alanı
-        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-        feedback_col1, feedback_col2, feedback_col3 = st.columns([1, 1, 1])
-        
-        with feedback_col1:
-            if st.button("🔄 Tekrar Yanıt Oluştur", use_container_width=True):
-                st.session_state.regenerate = True
-                st.experimental_rerun()
-        
-        with feedback_col2:
-            if st.button("✅ Tamamlandı", use_container_width=True):
-                st.session_state.conversation_completed = True
-                st.success("Teşekkürler! Bu konuşma tamamlandı olarak işaretlendi.")
-        
-        with feedback_col3:
-            feedback = st.selectbox("Yanıtı Değerlendir", ["Seçiniz...", "Çok Yardımcı", "Yardımcı", "Orta", "Az Yardımcı", "Yardımcı Değil"], index=0)
-            if feedback != "Seçiniz...":
-                st.session_state.last_feedback = feedback
-                st.success(f"Geri bildiriminiz için teşekkürler: {feedback}")
-        
-        # Eğer regenerate işaretlenmişse
-        if 'regenerate' in st.session_state and st.session_state.regenerate:
-            with st.spinner("Yeni yanıt oluşturuluyor..."):
-                # Burada agent'tan yeni bir yanıt istenebilir
-                # Örnek olarak aynı yanıtı tekrar gösteriyoruz
-                st.session_state.regenerate = False
-       
-# --- ANA UYGULAMA MANTIĞI: DASHBOARD ---
-
-# Session state'i başlat
-if "last_response" not in st.session_state: st.session_state.last_response = None
-
-if "user_id" not in st.session_state:
-    st.session_state.user_id = "ai_emotion_demo_user" 
-# Kullanıcı ID'si ayarlandı
-
-
-# Sohbet geçmişini yükle
-# Yükleme işlemleri için de st.session_state.db_client kullanılıyor
-if "history_loaded" not in st.session_state: 
-    loaded_conversations = load_conversations(st.session_state.db_client, st.session_state.user_id) 
-    
-    # YÜKLENEN GEÇMİŞİ LANGCHAIN BELLEĞİNE EKLEME (YENİ VE KRİTİK KISIM)
-    if agent_instance and loaded_conversations: # agent_instance burada kullanılıyor
-        # Belleği temizle (emin olmak için, eğer zaten bir şey varsa)
-        agent_instance.memory.clear() 
-
-        for entry in loaded_conversations:
-            agent_instance.memory.chat_memory.add_user_message(entry['user_message'])
-            agent_instance.memory.chat_memory.add_ai_message(entry['ai_response'])
-    
-    st.session_state.history = [
-        {
-            "user": entry['user_message'],
-            "ai": entry['ai_response'],
-            "time": entry['time'].replace(tzinfo=None) if hasattr(entry['time'], 'replace') else datetime.fromtimestamp(entry['time'].timestamp())
-        }
-        for entry in loaded_conversations
-    ]
-    st.session_state.history_loaded = True
-    
-# Ruh hali geçmişini yükle
-if "mood_history_loaded" not in st.session_state: 
-    loaded_mood_history = load_mood_history(st.session_state.db_client, st.session_state.user_id) 
-    st.session_state.mood_history = [
-        {
-            "zaman": entry['zaman'].replace(tzinfo=None) if hasattr(entry['zaman'], 'replace') else datetime.fromtimestamp(entry['zaman'].timestamp()),
-            "duygu_siddeti": entry['duygu_siddeti'],
-            "selected_emotion": entry.get('selected_emotion', 'Belirsiz')
-        }
-        for entry in loaded_mood_history
-    ]
-    st.session_state.mood_history_loaded = True
-
-
-# Agent'ı yükle ve hataları kontrol et (Bu blok aslında yukarıya taşındı, burada tekrar çağırmıyoruz)
-# Ancak fonksiyonların argüman olarak aldığı 'agent'ı doğru şekilde iletmeliyiz.
-# show_emotion_input_form() -> process_agent_response(agent_instance, form_data) olarak çağrılmalı.
-# process_agent_response içindeki 'agent' parametresi 'agent_instance' olacaktır.
-
-# Bu kısımda artık initialize_agent() çağrısı yok, o yukarıya taşındı.
-# Burada sadece `process_agent_response` ve `show_agent_response` fonksiyonlarını çağıracağız.
-# Bunu zaten sekmelerin içeriğinde yapıyorsunuz.
-# process_agent_response(agent_instance, form_data)
-# show_agent_response()
-
 # --- HEADER BÖLÜMÜ ---
-# Header'ı tek parça olarak oluştur
 st.markdown("""
 <div class="dashboard-header">
-    <h1 style="font-size: 1.5rem; margin: 0;">💙 Duygusal Destek Paneli</h1>
+    <h1 style="font-size: 1.5rem; margin: 0;">🚀 Duygusal Sağlık Paneli</h1>
+    <div id="theme-toggle-container"></div>
 </div>
+""", unsafe_allow_html=True)
+
+theme_button_placeholder = st.empty()
+theme_button = theme_button_placeholder.button(
+    "🌙" if not st.session_state.is_dark_mode else "☀️", 
+    key="theme_toggle_button", 
+    on_click=toggle_theme_mode,
+    help="Tema değiştir (Açık/Koyu)"
+)
+
+st.markdown("""
+<script>
+    const themeToggleContainer = document.getElementById('theme-toggle-container');
+    const themeButtonElement = document.querySelector('[data-testid="stButton"] button[key="theme_toggle_button"]');
+    
+    if (themeToggleContainer && themeButtonElement && !themeToggleContainer.contains(themeButtonElement.closest('[data-testid="stButton"]'))) {
+        themeToggleContainer.appendChild(themeButtonElement.closest('[data-testid="stButton"]'));
+    }
+</script>
 """, unsafe_allow_html=True)
 
 
@@ -526,242 +468,69 @@ selected_tab = option_menu(
     orientation="horizontal",
     styles={
         "container": {"padding": "0!important", "background-color": "transparent"},
-        "icon": {"color": "var(--accent-color-light)", "font-size": "20px"},
+        "icon": {"color": "var(--accent-color)", "font-size": "20px"},
         "nav-link": {"font-size": "16px", "text-align": "center", "margin":"0px", "--hover-color": "#eee"},
-        "nav-link-selected": {"background-color": "var(--card-bg-light)", "border-bottom": "3px solid var(--accent-color-light)", "font-weight": "600"},
+        "nav-link-selected": {"background-color": "var(--card-bg)", "border-bottom": "3px solid var(--accent-color)", "font-weight": "600", "color": "var(--text-color)"},
     }
 )
 
-# İçerik alanına padding ekleyerek header'ın altında kalmamasını sağla
-st.markdown("<div class='content-card' style='margin-top: 80px;'>", unsafe_allow_html=True)
+st.markdown("<div class='content-card' style='padding-top: 20px;'>", unsafe_allow_html=True)
+
 
 # SEKMELERİN İÇERİĞİ
 if selected_tab == "Konuşma Modülü":
-    # Modern başlık ve açıklama
-    st.markdown("""<div style='display: flex; align-items: center; margin-bottom: 20px;'>
-        <h2 style='margin: 0; color: var(--accent-color);'>💬 Agent ile Konuş</h2>
-    </div>""", unsafe_allow_html=True)
+    st.header("💬 Agent ile Konuş")
+    st.markdown("Duygularını, düşüncelerini paylaşarak anlık destek alabilirsin. Agent, verdiğin bilgilere göre sana özel yanıtlar üretecektir.")
     
-    # İki sütunlu düzen
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; border-left: 4px solid var(--accent-color);'>
-            <p>Duygularını, düşüncelerini paylaşarak anlık destek alabilirsin. Agent, verdiğin bilgilere göre sana özel yanıtlar üretecektir.</p>
-        </div>""", unsafe_allow_html=True)
-        
-        # Detaylı Giriş Formu
-        form_data = show_emotion_input_form()
-        process_agent_response(agent_instance, form_data) # Burada agent_instance kullanılıyor
-        show_agent_response()
-    
-    with col2:
-        # Lottie animasyonu ekle - Psikolojiye iyi gelecek bir animasyon
-        lottie_chat = load_lottieurl("https://assets3.lottiefiles.com/packages/lf20_ysrn2iwp.json") # Meditasyon/mindfulness animasyonu
-        if lottie_chat:
-            st_lottie(lottie_chat, height=200, key="chat_animation")
-        
-        # Motivasyon mesajı
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: var(--shadow-soft); border-left: 4px solid #FFD700;'>
-            <h4 style='color: var(--accent-color); margin-top: 0;'>✨ Günün Mesajı</h4>
-            <p style='font-style: italic;'>"Kendine nazik olmak, kendini sevmek değil, kendini iyileştirmektir."</p>
-        </div>""", unsafe_allow_html=True)
-        
-        # İpuçları kartı
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: var(--shadow-soft);'>
-            <h4 style='color: var(--accent-color); margin-top: 0;'>💡 İpuçları</h4>
-            <ul style='padding-left: 20px; margin-bottom: 0;'>
-                <li>Duygularınızı detaylı anlatın</li>
-                <li>Spesifik durumları paylaşın</li>
-                <li>İhtiyaçlarınızı belirtin</li>
-            </ul>
-        </div>""", unsafe_allow_html=True)
+    form_data = show_emotion_input_form()
+    process_agent_response(agent_instance, form_data)
+    show_agent_response()
 
 elif selected_tab == "Günlük Takip":
-    # Modern başlık ve açıklama
-    st.markdown("""<div style='display: flex; align-items: center; margin-bottom: 20px;'>
-        <h2 style='margin: 0; color: var(--accent-color);'>📓 Günlük Kayıtların</h2>
-    </div>""", unsafe_allow_html=True)
-    
-    # İki sütunlu düzen
-    journal_col1, journal_col2 = st.columns([3, 1])
-    
-    with journal_col1:
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; border-left: 4px solid var(--accent-color); margin-bottom: 20px;'>
-            <p>Önceki önemli konuşmaların, hedeflerin ve ruh hali kayıtların burada saklanır.</p>
-        </div>""", unsafe_allow_html=True)
-        
-        if not st.session_state.history:
-            st.markdown("""<div style='background-color: var(--card-bg); padding: 20px; border-radius: 10px; text-align: center; margin: 30px 0;'>
-                <img src='https://cdn-icons-png.flaticon.com/512/6134/6134065.png' width='80'>
-                <h3 style='margin-top: 15px; color: var(--accent-color);'>Henüz Kayıt Yok</h3>
-                <p>Günlüğe kaydedilmiş bir konuşma bulunmuyor. 'Konuşma Modülü' üzerinden etkileşime geçebilirsiniz.</p>
-            </div>""", unsafe_allow_html=True)
-        else:
-            # Konuşmaları en yeniden eskiye doğru göster
-            for entry in reversed(st.session_state.history):
-                with st.expander(f"📅 {entry['time'].strftime('%d %B %Y, %H:%M')}"):
-                    st.chat_message("user", avatar="👤").write(entry['user'])
-                    st.chat_message("assistant", avatar="🤖").write(entry['ai'])
-    
-    with journal_col2:
-        # Lottie animasyonu ekle
-        lottie_journal = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_jl2jqcq0.json")
-        if lottie_journal:
-            st_lottie(lottie_journal, height=180, key="journal_animation")
-        
-        # İstatistik kartı
-        if st.session_state.history:
-            conversation_count = len(st.session_state.history)
-            last_conversation = st.session_state.history[-1]['time'].strftime('%d %B')
-            
-            st.markdown(f"""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: var(--shadow-soft);'>
-                <h4 style='color: var(--accent-color); margin-top: 0;'>📊 İstatistikler</h4>
-                <p><strong>Toplam Konuşma:</strong> {conversation_count}</p>
-                <p><strong>Son Konuşma:</strong> {last_conversation}</p>
-            </div>""", unsafe_allow_html=True)
+    st.header("📓 Günlük Kayıtların")
+    st.markdown("Önceki önemli konuşmaların, hedeflerin ve ruh hali kayıtların burada saklanır.")
+    if not st.session_state.history:
+        st.info("Henüz günlüğe kaydedilmiş bir konuşma yok.")
+    else:
+        for entry in reversed(st.session_state.history):
+            with st.expander(f"📅 {entry['time'].strftime('%d %B %Y, %H:%M')}"):
+                st.chat_message("user", avatar="👤").write(entry['user'])
+                st.chat_message("assistant", avatar="🤖").write(entry['ai'])
 
 elif selected_tab == "Analiz & Raporlar":
-    # Modern başlık ve açıklama
-    st.markdown("""<div style='display: flex; align-items: center; margin-bottom: 20px;'>
-        <h2 style='margin: 0; color: var(--accent-color);'>📊 Ruh Hali Analizi</h2>
-    </div>""", unsafe_allow_html=True)
-    
-    # İki sütunlu düzen
-    analysis_col1, analysis_col2 = st.columns([3, 1])
-    
-    with analysis_col1:
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; border-left: 4px solid var(--accent-color); margin-bottom: 20px;'>
-            <p>Zaman içindeki duygu durumunuz ve şiddetinizin analizi burada görüntülenir.</p>
-        </div>""", unsafe_allow_html=True)
+    st.header("📊 Ruh Hali Analizi")
+    if not st.session_state.mood_history:
+        st.info("Grafik oluşturmak için henüz yeterli veri yok. 'Konuşma Modülü' üzerinden etkileşime geçin.")
+    else:
+        st.markdown("Zaman içindeki duygu şiddeti değişimin:")
+        df = pd.DataFrame(st.session_state.mood_history)
+        df['tarih'] = pd.to_datetime(df['zaman']).dt.date
         
-        if not st.session_state.mood_history:
-            st.markdown("""<div style='background-color: var(--card-bg); padding: 20px; border-radius: 10px; text-align: center; margin: 30px 0;'>
-                <img src='https://cdn-icons-png.flaticon.com/512/6596/6596121.png' width='80'>
-                <h3 style='margin-top: 15px; color: var(--accent-color);'>Henüz Veri Yok</h3>
-                <p>Grafik oluşturmak için henüz yeterli veri yok. 'Konuşma Modülü' üzerinden etkileşime geçin.</p>
-            </div>""", unsafe_allow_html=True)
-        else:
-            # Veri hazırlama
-            df = pd.DataFrame(st.session_state.mood_history)
-            df['tarih'] = pd.to_datetime(df['zaman']).dt.date
-            df['selected_emotion'] = df['selected_emotion'].fillna('Belirsiz')
-            daily_avg = df.groupby('tarih')['duygu_siddeti'].mean()
-            
-            # Kartlar içinde grafikler
-            st.markdown("""<h4 style='color: var(--accent-color); margin-top: 0;'>Duygu Şiddeti Değişimi</h4>""", unsafe_allow_html=True)
-            st.area_chart(daily_avg, color="#6B46C1")
-            
-            # Metrikler
-            metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
-            with metrics_col1:
-                st.metric("Ortalama Duygu Şiddeti", f"{df['duygu_siddeti'].mean():.2f} / 5")
-            with metrics_col2:
-                st.metric("En Yüksek Şiddet", f"{df['duygu_siddeti'].max()} / 5")
-            with metrics_col3:
-                st.metric("Kayıt Sayısı", f"{len(df)}")
-            
-            # Duygu dağılımı
-            st.markdown("""<h4 style='color: var(--accent-color); margin-top: 20px;'>Duygu Dağılımı</h4>""", unsafe_allow_html=True)
-            emotion_counts = df['selected_emotion'].value_counts().reset_index()
-            emotion_counts.columns = ['Duygu', 'Sayı']
-            st.bar_chart(emotion_counts.set_index('Duygu'), use_container_width=True, color="#764ba2")
-    
-    with analysis_col2:
-        # Lottie animasyonu ekle
-        lottie_analysis = load_lottieurl("https://assets3.lottiefiles.com/packages/lf20_qp1q7mct.json")
-        if lottie_analysis:
-            st_lottie(lottie_analysis, height=180, key="analysis_animation")
+        df['selected_emotion'] = df['selected_emotion'].fillna('Belirsiz') 
         
-        # Bilgi kartı
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: var(--shadow-soft);'>
-            <h4 style='color: var(--accent-color); margin-top: 0;'>💡 Analiz Bilgisi</h4>
-            <p>Duygusal değişimlerinizi takip etmek, kendinizi daha iyi anlamanıza yardımcı olur.</p>
-            <p>Düzenli kayıtlar, daha doğru analizler sağlar.</p>
-        </div>""", unsafe_allow_html=True)
+        daily_avg = df.groupby('tarih')['duygu_siddeti'].mean()
         
-        # Geliştirme notu
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; border-left: 3px solid #FFD700;'>
-            <p style='margin: 0; font-size: 0.9rem;'><strong>Not:</strong> Bu özellik geliştirme aşamasındadır. Yakında daha detaylı analizler eklenecektir.</p>
-        </div>""", unsafe_allow_html=True)
+        st.area_chart(daily_avg, color="#6B46C1") 
+        
+        st.metric("Ortalama Duygu Şiddeti", f"{df['duygu_siddeti'].mean():.2f} / 5")
+        
+        st.subheader("Duygu Dağılımı")
+        emotion_counts = df['selected_emotion'].value_counts().reset_index()
+        emotion_counts.columns = ['Duygu', 'Sayı']
+        st.bar_chart(emotion_counts.set_index('Duygu'), use_container_width=True, color="#764ba2")
+
+        st.warning("Bu özellik geliştirme aşamasındadır.")
 
 elif selected_tab == "Kaynak & Öneriler":
-    # Modern başlık ve açıklama
-    st.markdown("""<div style='display: flex; align-items: center; margin-bottom: 20px;'>
-        <h2 style='margin: 0; color: var(--accent-color);'>💡 Kaynaklar & Öneriler</h2>
-    </div>""", unsafe_allow_html=True)
-    
-    # İki sütunlu düzen
-    resources_col1, resources_col2 = st.columns([3, 1])
-    
-    with resources_col1:
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; border-left: 4px solid var(--accent-color); margin-bottom: 20px;'>
-            <p>Her gün kendine bir iyilik yap. Burada faydalı kaynaklar ve günlük öneriler bulabilirsiniz.</p>
-        </div>""", unsafe_allow_html=True)
-        
-        # Günlük hatırlatma kartı
-        reminders = [
-            "Bugün kendine 5 dakika ayırmayı unutma. Sadece nefes alıp ver.",
-            "Mükemmel olmak zorunda değilsin. Sadece deniyor olman bile çok değerli.",
-            "Küçük bir başarıyı kutla. Bir kahveyi hak ettin!",
-            "Geçmişi değiştiremezsin, ama şu anki tepkini kontrol edebilirsin.",
-            "Kendine karşı, en iyi arkadaşına davrandığın gibi nazik ol."
-        ]
-        
-        st.markdown(f"""<div style='background-color: var(--card-bg); padding: 20px; border-radius: 10px; margin: 20px 0; box-shadow: var(--shadow-soft); border-left: 4px solid #FFD700;'>
-            <h3 style='color: var(--accent-color); margin-top: 0;'>✨ Günün Hatırlatması</h3>
-            <p style='font-size: 1.1rem; font-style: italic;'>"{random.choice(reminders)}"</p>
-        </div>""", unsafe_allow_html=True)
-        
-        # Kaynaklar bölümü
-        st.markdown("""<h3 style='color: var(--accent-color);'>📚 Faydalı Kaynaklar</h3>""", unsafe_allow_html=True)
-        
-        # Kaynaklar için kartlar
-        resources_row1_col1, resources_row1_col2 = st.columns(2)
-        with resources_row1_col1:
-            st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; height: 100%; box-shadow: var(--shadow-soft);'>
-                <h4 style='color: var(--accent-color); margin-top: 0;'>🧘‍♀️ Mindfulness Teknikleri</h4>
-                <p>Günlük stresle başa çıkmak için mindfulness ve meditasyon teknikleri.</p>
-                <button style='background-color: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;'>Daha Fazla</button>
-            </div>""", unsafe_allow_html=True)
-        
-        with resources_row1_col2:
-            st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; height: 100%; box-shadow: var(--shadow-soft);'>
-                <h4 style='color: var(--accent-color); margin-top: 0;'>😌 Stres Yönetimi</h4>
-                <p>Günlük hayatta stres yönetimi için pratik ipuçları ve stratejiler.</p>
-                <button style='background-color: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;'>Daha Fazla</button>
-            </div>""", unsafe_allow_html=True)
-        
-        resources_row2_col1, resources_row2_col2 = st.columns(2)
-        with resources_row2_col1:
-            st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; height: 100%; box-shadow: var(--shadow-soft);'>
-                <h4 style='color: var(--accent-color); margin-top: 0;'>💪 Motivasyon Teknikleri</h4>
-                <p>Motivasyonunuzu artırmak ve hedeflerinize ulaşmak için stratejiler.</p>
-                <button style='background-color: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;'>Daha Fazla</button>
-            </div>""", unsafe_allow_html=True)
-        
-        with resources_row2_col2:
-            st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; height: 100%; box-shadow: var(--shadow-soft);'>
-                <h4 style='color: var(--accent-color); margin-top: 0;'>😴 Uyku Kalitesi</h4>
-                <p>Daha iyi uyku için bilimsel olarak kanıtlanmış yöntemler ve öneriler.</p>
-                <button style='background-color: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;'>Daha Fazla</button>
-            </div>""", unsafe_allow_html=True)
-    
-    with resources_col2:
-        # Lottie animasyonu ekle
-        lottie_resources = load_lottieurl("https://assets1.lottiefiles.com/packages/lf20_jhlaooj5.json")
-        if lottie_resources:
-            st_lottie(lottie_resources, height=180, key="resources_animation")
-        
-        # Hızlı erişim kartı
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: var(--shadow-soft);'>
-            <h4 style='color: var(--accent-color); margin-top: 0;'>⚡ Hızlı Erişim</h4>
-            <ul style='padding-left: 20px; margin-bottom: 0;'>
-                <li>Günlük Egzersizler</li>
-                <li>Nefes Teknikleri</li>
-                <li>Duygu Düzenleme</li>
-                <li>Pozitif Psikoloji</li>
-            </ul>
-        </div>""", unsafe_allow_html=True)
+    st.header("💡 Günlük Tavsiyeler & Hatırlatmalar")
+    st.markdown("Her gün kendine bir iyilik yap.")
+    reminders = [
+        "Bugün kendine 5 dakika ayırmayı unutma. Sadece nefes alıp ver.",
+        "Mükemmel olmak zorunda değilsin. Sadece deniyor olman bile çok değerli.",
+        "Küçük bir başarıyı kutla. Bir kahveyi hak ettin!",
+        "Geçmişi değiştiremezsin, ama şu anki tepkini kontrol edebilirsin.",
+        "Kendine karşı, en iyi arkadaşına davrandığın gibi nazik ol."
+    ]
+    st.info(f"**Bugünün Hatırlatması:** {random.choice(reminders)}")
 
 st.markdown("</div>", unsafe_allow_html=True)
