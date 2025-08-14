@@ -212,3 +212,6 @@ test_project/
 *.json
 # veya sadece hassas dosyanın kendisi
 test_project/serviceAccountkey.json
+
+# Firebase Service Account Key
+ai-support-firebase.json

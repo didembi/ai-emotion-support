@@ -1,247 +1,172 @@
+# ai-emotion-support/agents/agent_logic.py - SON GÜNCEL VE İYİLEŞTİRİLMİŞ PROMPT KODU
 from langchain.memory import ConversationBufferMemory
 from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.schema import HumanMessage, AIMessage
 from typing import Dict, List, Any
 import json
 from datetime import datetime
-from tools import get_agent_tools
+from .tools import get_agent_tools 
 
 class EmotionalSupportAgent:
     """
     Destekleyici Mini Terapi Asistanı - Agent Mimarisi
-    
-    Bu agent şu yeteneklere sahiptir:
-    1. Hafıza: Önceki konuşmaları hatırlar
-    2. Tool Kullanımı: Meditasyon, egzersiz, kaynak önerileri
-    3. Çok Adımlı Planlama: Karmaşık durumlarda adım adım çözüm
     """
-    
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, retriever= None):
         self.api_key = api_key
-        self.llm = ChatOpenAI(
-            openai_api_key=api_key,
-            model="gpt-3.5-turbo",
-            temperature=0.7
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",   
+            google_api_key=api_key,
+            temperature=1.0,
+            convert_system_message_to_human=True
         )
-        
-        # Hafıza sistemi - önceki konuşmaları hatırlar
         self.memory = ConversationBufferMemory(
-
-            memory_key="chat_history",
-            return_messages=True,
-            output_key="output",
-            input_key="input",
+            memory_key="chat_history", return_messages=True,
+            output_key="output", input_key="input",
         )
-        
-        # Agent'ın kullanabileceği araçları yükle
         self.tools = get_agent_tools()
-        
-        # Agent prompt'unu oluştur
         self.prompt = self._create_agent_prompt()
-        
-        # Agent'ı oluştur
         self.agent = create_openai_functions_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=self.prompt
+            llm=self.llm, tools=self.tools, prompt=self.prompt
         )
-        
-        # Agent executor'ı oluştur
         self.agent_executor = AgentExecutor(
-            agent=self.agent,
-            tools=self.tools,
-            memory=self.memory,
-            verbose=True,
-            handle_parsing_errors=True,
-            max_iterations=5
+            agent=self.agent, tools=self.tools, memory=self.memory,
+            verbose=True, handle_parsing_errors=True, max_iterations=5
         )
-        
-        # Kullanıcı profili ve duygu geçmişi
+        self.retriever = retriever
         self.user_profile = {
-            "emotion_history": [],
-            "preferred_support_types": [],
-            "crisis_indicators": []
+            "emotion_history": [], "preferred_support_types": [], "crisis_indicators": []
         }
-    
+
     def _create_agent_prompt(self) -> ChatPromptTemplate:
-        """
-        Agent için özel prompt oluşturur
-        """
         system_message = """
-        Sen "Destekleyici Mini Terapi Asistanı" adında bir AI agent'sın. Görevin kullanıcıların duygusal destek sağlamak.
+        Sen "İçten Destek Asistanı" adında, **samimi, içten, şefkatli ve yargılayıcı olmayan** bir AI arkadaşısın.
+        Amacın, insanları gerçekten anlayan, destekleyici ve yapıcı bir arkadaş gibi davranmak.
+        **ASLA bir araç operatörü veya mekanik bir chatbot gibi ses çıkarma.**
 
-YETENEKLERİN:
-1. 🧠 HAFIZA: Önceki konuşmaları hatırlayarak kişiselleştirilmiş destek veriyorsun
-2. 🛠️ ARAÇ KULLANIMI: Gerektiğinde meditasyon, egzersiz, kaynak önerebiliyorsun
-3. 📋 PLANLAMA: Karmaşık durumlarda adım adım çözüm planı yapabiliyorsun
+        **ANA GÖREVİN:**
+        Kullanıcının duygularını anlamak, geçerli kılmak (validate etmek) ve ona hemen bir rahatlama veya başa çıkma yönünde destek olmaktır. Araçlar (eğer kullanıyorsan) bu ana görevi destekleyen ikincil unsurlardır.
 
-YAKLAŞIMIN:
-- Empati ve anlayış göster
-- Yargılamadan dinle
-- Önceki konuşmaları referans al
-- Gerektiğinde araçları kullan
-- Kriz durumlarında profesyonel yardım öner
+        **KONUŞMA AKIŞI KURALLARI (ÇOK ÖNEMLİ):**
+        1.  **ÖNCE EMPATİ KUR ve GEÇERLİ KIL:** Her zaman, ama her zaman, önce kullanıcının duygularını yansıtan ve anladığını gösteren samimi bir cümle ile başla. Duygusunun normal ve kabul edilebilir olduğunu hissettir. Yargılamadan dinlediğini hissettir.
+        2.  **DOĞRUDAN DESTEKLEYİCİ MESAJ SUN:** Empati ve geçerli kılma adımlarından SONRA, genel bir destek veya içgörü sun.
+        3.  **SOMUT BİR ÖNERİDE BULUN (Soru Sormadan ve Asla Açık Uçlu Soruyla Bitirme):** Destekleyici mesajının bir parçası olarak, kullanıcıya faydalı olabileceğini düşündüğün, küçük ve somut bir eylem veya aktivite **öner**.
+            *   **ASLA kullanıcının ne yapmak istediğini soran bir soruyla yanıtını bitirme (örn. "İster misin?", "Ne dersin?", "Ne istersin?", "Nasıl istersen.").**
+            *   Yanıtını her zaman **net bir öneriyle** veya **destekleyici bir kapanış cümlesiyle** (örn. "Bunun sana iyi geleceğini düşünüyorum.", "Bu konuda sana destek olmaya devam edebilirim.") bitir.
+            *   Eğer bir araç (tool) kullanıyorsan, teklifini şöyle çerçevele: "Bu hislerle başa çıkmak için zihni sakinleştirmek işe yarayabiliyor, **kısa bir nefes egzersizi deneyebiliriz.**" veya "Enerjini yükseltmek istersen, **basit bir motivasyon egzersizi yapabiliriz.**"
+            *   "Konuşmaya devam etme" seçeneğini şöyle sunabilirsin: "Bu konuda daha fazla konuşmak istersen, ben buradayım."
 
-ÖNEMLİ: Eğer kullanıcı ciddi depresyon, intihar düşünceleri veya kriz belirtileri gösteriyorsa,
-mutlaka profesyonel yardım almasını öner ve uygun araçları kullan.
-
-Şu anki tarih ve saat: {current_time}
-"""
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_message),
-            MessagesPlaceholder(variable_name="chat_history"),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad")
-        ])
-        prompt = prompt.partial(current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-        
+        **PLANLAMA (İÇSEL YÖNERGELER - KULLANICIYA ASLA GÖSTERME):**
+        Lütfen bu yanıtı oluştururken **şu içsel adımları takip et. BU ADIMLARI KULLANICIYA YANITINDA KESİNLİKLE GÖSTERME.** Bu adımlar sadece senin düşünce sürecin içindir.
+        {plan_instructions}
+        Şu anki tarih ve saat: {current_time}
+        {context}
+        """
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system_message),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("human", "{plan_instructions_for_ai}\n\nŞu anki tarih ve saat: {current_time}\n\nKullanıcı Mesajı: {input}"), # Plan talimatları prompt'a özel isimle geçecek
+                MessagesPlaceholder(variable_name="agent_scratchpad")
+            ]
+            # input_variables argümanı burada artık YOK.
+        )
         return prompt
-    
+
     def analyze_emotion_pattern(self, current_emotion: str, intensity: int) -> Dict[str, Any]:
-        """
-        Kullanıcının duygu geçmişini analiz eder
-        """
-        # Mevcut duyguyu geçmişe ekle
         emotion_entry = {
-            "emotion": current_emotion,
-            "intensity": intensity,
-            "timestamp": datetime.now().isoformat()
+            "emotion": current_emotion, "intensity": intensity, "timestamp": datetime.now().isoformat()
         }
         self.user_profile["emotion_history"].append(emotion_entry)
-        
-        # Son 5 duyguyu analiz et
         recent_emotions = self.user_profile["emotion_history"][-5:]
-        
         analysis = {
-            "pattern_detected": False,
-            "trend": "stable",
-            "recommendations": [],
-            "crisis_risk": "low"
+            "pattern_detected": False, "trend": "stable",
+            "recommendations": [], "crisis_risk": "low"
         }
-        
         if len(recent_emotions) >= 3:
-            # Yoğunluk trendini kontrol et
             intensities = [e["intensity"] for e in recent_emotions]
             if all(i >= 4 for i in intensities[-3:]):
-                analysis["trend"] = "worsening"
-                analysis["crisis_risk"] = "medium"
-                analysis["recommendations"].append("professional_help")
+                analysis["trend"] = "worsening"; analysis["crisis_risk"] = "medium"; analysis["recommendations"].append("professional_help")
             elif all(i <= 2 for i in intensities[-3:]):
                 analysis["trend"] = "improving"
-            
-            # Tekrarlayan duygu kontrolü
             emotions = [e["emotion"] for e in recent_emotions]
             if emotions.count(current_emotion) >= 3:
-                analysis["pattern_detected"] = True
-                analysis["recommendations"].append("pattern_intervention")
-        
+                analysis["pattern_detected"] = True; analysis["recommendations"].append("pattern_intervention")
         return analysis
-    
+
     def create_multi_step_plan(self, user_input: str, emotion_analysis: Dict) -> List[str]:
-        """
-        Karmaşık durumlar için çok adımlı plan oluşturur
-        """
-        plan_steps = []
-        
-        # 1. Durum değerlendirmesi
-        plan_steps.append("🔍 Duygusal durumunu analiz ediyorum")
-        
-        # 2. Acil müdahale gerekli mi?
-        if emotion_analysis["crisis_risk"] == "high":
-            plan_steps.append("🚨 Acil destek kaynakları sağlıyorum")
-            plan_steps.append("📞 Profesyonel yardım öneriyorum")
-        
-        # 3. Uygun araçları belirle
+        # PLAN ADIMLARI DAHA ÇOK AI'IN İÇSEL DÜŞÜNCE SÜRECİNİ YANSITMALI
+        plan_steps = [] 
+        if emotion_analysis.get("crisis_risk") == "high":
+            plan_steps.append("🚨 Acil destek kaynaklarını nazikçe öner.")
+            plan_steps.append("📞 Profesyonel yardım almanın önemini vurgula.")
         if "stres" in user_input.lower() or "endişe" in user_input.lower():
-            plan_steps.append("🧘 Rahatlatıcı teknikler öneriyorum")
-        
+            plan_steps.append("🧘 Rahatlatıcı tekniklerden (nefes, meditasyon) birini somut olarak öner.")
         if "motivasyon" in user_input.lower() or "enerji" in user_input.lower():
-            plan_steps.append("⚡ Motivasyon artırıcı egzersizler öneriyorum")
+            plan_steps.append("⚡ Motivasyon artırıcı egzersizlerden veya küçük bir öz bakım aktivitesinden somut bir örnek ver.")
         
-        # 4. Kişiselleştirilmiş mesaj
-        plan_steps.append("💙 Kişiselleştirilmiş destek mesajı hazırlıyorum")
+        # Bu adım, ana destek mesajının nasıl oluşturulacağını yönlendirir, kullanıcıya gösterilmez.
+        plan_steps.append("💙 Empatik, kişiselleştirilmiş bir destek mesajı oluştur ve somut bir öneri ile bitir.")
         
-        # 5. Takip planı
-        if emotion_analysis["pattern_detected"]:
-            plan_steps.append("📊 Duygu takip planı oluşturuyorum")
-        
+        if emotion_analysis.get("pattern_detected"):
+            plan_steps.append("📊 Duygu takip etmenin veya günlük tutmanın faydalarını belirt.")
         return plan_steps
-    
+
     def process_user_input(self, user_input: str, emotion_data: Dict = None) -> Dict[str, Any]:
-        """
-        Kullanıcı girdisini işler ve agent yanıtı üretir
-        """
         try:
-            # Duygu analizi yap
             emotion_analysis = {}
             if emotion_data:
                 emotion_analysis = self.analyze_emotion_pattern(
-                    emotion_data.get("selected_emotion", "belirsiz"),
+                    emotion_data.get("dominant_emotion", "belirsiz"),
                     emotion_data.get("intensity", 3)
                 )
-            
-            # Çok adımlı plan oluştur
-            plan_steps = self.create_multi_step_plan(user_input, emotion_analysis)
-            
 
-            # Agent'ı çalıştır
+            plan_steps = self.create_multi_step_plan(user_input, emotion_analysis)
+            # PLAN_INSTRUCTIONS_FOR_AI: Bu metin LLM'in internal planlaması içindir, çıktıya dahil etmemeli.
+            plan_instructions_for_ai = (
+                "Yanıtını oluştururken izlemen gereken adımlar şunlar (BU METNİ YANITINDA KESİNLİKLE KULLANMA, SADECE İÇSEL BİR REHBER OLARAK KULLAN):\n" +
+                "\n".join(f"- {step}" for step in plan_steps) +
+                "\nYukarıdaki adımları takip ederek bütüncül ve empatik bir yanıt oluştur."
+            )
+            retrieved_context = ""
+            if self.retriever: 
+                print(f"DEBUG (agent_logic.py): RAG retriever kullanılıyor...")
+                docs = self.retriever.get_relevant_documents(user_input)
+                if docs:
+                    retrieved_context = "\n\nEk Bilgi Kaynakları (Kullanıcının sorusuyla ilgili):\n" + "\n---\n".join([doc.page_content for doc in docs])
+                    print(f"DEBUG (agent_logic.py): RAG ile çekilen kontekst: \n{retrieved_context[:200]}...")
+                else:
+                    print(f"DEBUG (agent_logic.py): RAG ile ilgili belge bulunamadı.")
+            
             response = self.agent_executor.invoke({
-                "input": user_input,
+                "input": user_input, 
+                "plan_instructions_for_ai": plan_instructions_for_ai, # <-- Buradaki değişken adını prompt'takiyle eşleştir
+                "current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "context": retrieved_context 
             })
             
             return {
-                "success": True,
-                "response": response["output"],
-                "plan_steps": plan_steps,
-
+                "success": True, "response": response["output"], "plan_steps": plan_steps, # plan_steps hala debug için döndürülebilir
             }
-            
         except Exception as e:
+            print(f"Hata oluştu: {e}")
             return {
-                "success": False,
-                "error": str(e),
+                "success": False, "error": str(e),
                 "fallback_response": "Üzgünüm, şu anda teknik bir sorun yaşıyorum. Lütfen tekrar deneyin."
             }
-    
-    def _extract_tools_used(self, response: Dict) -> List[str]:
-        """
-        Kullanılan araçları çıkarır
-        """
-        # Bu basit bir implementasyon, gerçek kullanımda daha detaylı olabilir
-        tools_used = []
-        if "intermediate_steps" in response:
-            for step in response["intermediate_steps"]:
-                if hasattr(step, 'tool'):
-                    tools_used.append(step.tool)
-        return tools_used
-    
+
     def _get_memory_summary(self) -> str:
-        """
-        Hafıza özetini döndürür
-        """
         messages = self.memory.chat_memory.messages
-        if len(messages) > 0:
-            return f"Son {len(messages)} mesaj hafızada saklanıyor"
-        return "Henüz hafızada mesaj yok"
-    
+        return f"Son {len(messages)} mesaj hafızada saklanıyor" if messages else "Henüz hafızada mesaj yok"
+
     def clear_memory(self):
-        """
-        Hafızayı temizler
-        """
         self.memory.clear()
         self.user_profile["emotion_history"] = []
-    
+
     def get_user_profile_summary(self) -> Dict[str, Any]:
-        """
-        Kullanıcı profil özetini döndürür
-        """
         return {
             "total_conversations": len(self.memory.chat_memory.messages) // 2,
             "emotion_history_count": len(self.user_profile["emotion_history"]),
-            "recent_emotions": self.user_profile["emotion_history"][-3:] if self.user_profile["emotion_history"] else [],
+            "recent_emotions": self.user_profile["emotion_history"][-3:],
             "memory_summary": self._get_memory_summary()
         }

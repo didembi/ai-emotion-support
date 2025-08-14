@@ -5,7 +5,9 @@ import random
 
 def suggest_meditation_tool(input_text: str) -> str:
     """
-    Kullanıcının durumuna göre meditasyon önerir
+    Kullanıcıya empatik bir yanıt verildikten ve duygusal durumu anlaşıldıktan SONRA,
+    zihinsel sakinlik sağlamak amacıyla bir meditasyon veya nefes egzersizi seansı sunmak için kullanılır.
+    Bu araç, kullanıcıya bir seçenek olarak sunulmalıdır.
     """
     meditations = {
         "stres": {
@@ -196,23 +198,9 @@ def provide_crisis_resources(input_text: str) -> str:
     Kriz durumları için kaynaklar sağlar
     """
     return """
-🚨 **ACİL DESTEK KAYNAKLARI**
 
-📞 **Kriz Hatları:**
-• Yaşam Hattı: 182 (7/24 ücretsiz)
-• TIHV Ruh Sağlığı: 0312 310 66 36
-• Mavi Kalem: 444 0 632
-
-🏥 **Acil Durumlar:**
-• 112 - Acil Sağlık Hizmetleri
-• En yakın hastane acil servisi
-
-💙 **Online Destek:**
-• 7cups.com - Ücretsiz duygusal destek
-• Betterhelp.com - Online terapi
 
 ⚠️ **ÖNEMLİ:**
-Eğer kendinize zarar verme düşünceleriniz varsa, lütfen hemen profesyonel yardım alın.
 Yalnız değilsiniz ve yardım almak cesaret gerektirir.
 
 🤝 **Güvenilir Kişiler:**
