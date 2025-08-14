@@ -1,26 +1,25 @@
-# ai-emotion-support/agents/firebase_db.py - NİHAİ KOD (HEM YEREL HEM CLOUD UYUMLU)
+# ai-emotion-support/agents/firebase_db.py - YEREL DEBUG İÇİN GEÇİCİ KOD
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
-import json # JSON içeriğini işlemek için
+import json 
+
+print(f"--- DEBUG (firebase_db.py): Modül yükleniyor: {__file__} ---")
 
 # .env dosyasının tam yolunu manuel olarak belirtiyoruz.
 project_root_for_db = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 dotenv_path_for_db = os.path.join(project_root_for_db, '.env')
 load_dotenv(dotenv_path=dotenv_path_for_db) 
 
+print(f"DEBUG (firebase_db.py): .env loaded from '{dotenv_path_for_db}'.")
+
 # db istemcisi, initialize_firebase_app() tarafından atanacak.
 db = None 
 
 def initialize_firebase_app():
-    """
-    Firebase Admin SDK'yı başlatır ve Firestore istemcisini atar.
-    Ortam değişkenlerinden kimlik bilgilerini iki farklı yolla dener:
-    1. FIREBASE_CREDENTIALS (doğrudan JSON içeriği, Streamlit Secrets için)
-    2. FIREBASE_CREDENTIALS_PATH (JSON dosya yolu, yerel .env için)
-    """
     global db 
+    print(f"DEBUG (firebase_db.py): initialize_firebase_app fonksiyonu çağrıldı.")
 
     if firebase_admin._apps:
         print("Firebase uygulaması zaten başlatılmış. Mevcut istemci döndürülüyor.")
@@ -31,6 +30,7 @@ def initialize_firebase_app():
     firebase_credentials_json_str = os.getenv("FIREBASE_CREDENTIALS") 
     
     if firebase_credentials_json_str:
+        print(f"DEBUG (firebase_db.py): FIREBASE_CREDENTIALS ortam değişkeni bulundu. JSON olarak deneniyor.")
         try:
             cred_dict = json.loads(firebase_credentials_json_str)
             cred = credentials.Certificate(cred_dict) 
@@ -42,12 +42,15 @@ def initialize_firebase_app():
             print(f"HATA: Firebase JSON içeriği geçersiz veya bağlantı sorunu: {e}")
             db = None
             return None
+    else:
+        print(f"DEBUG (firebase_db.py): FIREBASE_CREDENTIALS ortam değişkeni bulunamadı. Dosya yolu deneniyor.")
     
     # 2. Yöntem: Ortam değişkeninde JSON dosya yolu ara (Yerel .env için)
     firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
     if firebase_credentials_path:
+        print(f"DEBUG (firebase_db.py): FIREBASE_CREDENTIALS_PATH ortam değişkeni bulundu: '{firebase_credentials_path}'.")
         absolute_credentials_path = os.path.abspath(firebase_credentials_path)
-        
+        print(f"DEBUG (firebase_db.py): Aranacak mutlak yol (path): '{absolute_credentials_path}'")
         if os.path.exists(absolute_credentials_path):
             try:
                 cred = credentials.Certificate(absolute_credentials_path)
@@ -56,7 +59,7 @@ def initialize_firebase_app():
                 print("Firebase bağlantısı başarılı! (Dosya yolu yöntemi)")
                 return db
             except Exception as e:
-                print(f"HATA: Firebase bağlantısı sırasında bir sorun oluştu (dosya yolu yöntemi): {e}")
+                print(f"HATA: Firebase bağlantısı sırasında bir sorun oluştu (dosya yolu methodu): {e}")
                 db = None
                 return None
         else:
@@ -65,7 +68,7 @@ def initialize_firebase_app():
             return None
     
     # Her iki yöntem de başarısız olursa
-    print(f"HATA: Firebase kimlik bilgileri (.env veya Streamlit Secrets'ta FIREBASE_CREDENTIALS veya FIREBASE_CREDENTIALS_PATH) tanımlı değil. Firebase başlatılamıyor.")
+    print(f"HATA: Firebase kimlik bilgileri (.env'de FIREBASE_CREDENTIALS veya FIREBASE_CREDENTIALS_PATH) tanımlı değil. Firebase başlatılamıyor.")
     db = None
     return None
 
