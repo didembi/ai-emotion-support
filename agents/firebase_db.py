@@ -1,4 +1,4 @@
-# ai-emotion-support/agents/firebase_db.py - YEREL DEBUG İÇİN GEÇİCİ KOD
+# ai-emotion-support/agents/firebase_db.py - YEREL DEBUG İÇİN GEÇİCİ KOD (Tüm Debuglar Dahil)
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
@@ -14,7 +14,7 @@ load_dotenv(dotenv_path=dotenv_path_for_db)
 
 print(f"DEBUG (firebase_db.py): .env loaded from '{dotenv_path_for_db}'.")
 
-# db istemcisi, initialize_firebase_app() tarafından atanacak.
+# Global db nesnesi. Başlangıçta None, initialize_firebase_app() tarafından atanacak.
 db = None 
 
 def initialize_firebase_app():
@@ -22,7 +22,7 @@ def initialize_firebase_app():
     print(f"DEBUG (firebase_db.py): initialize_firebase_app fonksiyonu çağrıldı.")
 
     if firebase_admin._apps:
-        print("Firebase uygulaması zaten başlatılmış. Mevcut istemci döndürülüyor.")
+        print("DEBUG (firebase_db.py): Firebase uygulaması zaten başlatılmış. Mevcut istemci döndürülüyor.")
         db = firestore.client()
         return db
 
@@ -52,6 +52,7 @@ def initialize_firebase_app():
         absolute_credentials_path = os.path.abspath(firebase_credentials_path)
         print(f"DEBUG (firebase_db.py): Aranacak mutlak yol (path): '{absolute_credentials_path}'")
         if os.path.exists(absolute_credentials_path):
+            print(f"DEBUG (firebase_db.py): Dosya yolu mevcut: '{absolute_credentials_path}'.")
             try:
                 cred = credentials.Certificate(absolute_credentials_path)
                 firebase_admin.initialize_app(cred)
@@ -72,7 +73,7 @@ def initialize_firebase_app():
     db = None
     return None
 
-# --- CRUD Fonksiyonları (aynı kalır) ---
+# --- CRUD Fonksiyonları (değişmedi) ---
 def save_conversation(db_client, user_id: str, conversation_entry: dict):
     if db_client: 
         try:
