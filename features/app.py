@@ -27,7 +27,7 @@ import streamlit.components.v1 as components
 # firebase_db'den sadece fonksiyonları ve initialize_firebase_app'ı import ediyoruz.
 from agents.firebase_db import save_conversation, load_conversations, delete_user_data, save_mood_entry, load_mood_history, firestore, initialize_firebase_app 
 from agents.agent_logic import EmotionalSupportAgent 
-from rag.rag_service import get_rag_retriever
+from rag.rag_service import get_rag_retriever, reset_chroma_db
 import agents.agent_logic as al_module # agent_logic modülünü import et
 import streamlit.components.v1 as components
 
@@ -509,6 +509,32 @@ if "mood_history_loaded" not in st.session_state:
 # process_agent_response(agent_instance, form_data)
 # show_agent_response()
 
+with st.sidebar:
+    st.title("⚙️ Yönetim Paneli")
+    st.markdown("---")
+    
+    # RAG Veritabanı Yönetimi
+    st.subheader("📚 RAG Veritabanı")
+    
+    # RAG sisteminin durumunu kontrol et ve kullanıcıya bildir
+    if agent_instance and agent_instance.retriever:
+        st.success("RAG sistemi aktif ve hazır.")
+    else:
+        st.warning("RAG sistemi aktif değil. 'data' klasöründe belge olmayabilir.")
+
+    st.markdown("Eğer `data` klasörüne yeni belgeler eklediyseniz, aşağıdaki butona tıklayarak veritabanını güncelleyebilirsiniz.")
+    
+    if st.button("🔄 Veritabanını Sıfırla ve Yenile"):
+        with st.spinner("Veritabanı siliniyor..."):
+            if reset_chroma_db():
+                st.success("Veritabanı başarıyla sıfırlandı! Sayfayı yenilediğinizde veriler yeniden yüklenecektir.")
+                # Sayfanın otomatik olarak yeniden çalışmasını sağlayarak veritabanının hemen oluşmasını tetikler
+                st.rerun() 
+            else:
+                st.error("Veritabanı sıfırlanamadı veya zaten mevcut değil.")
+    
+    st.markdown("---")
+    
 # --- HEADER BÖLÜMÜ ---
 # Header'ı tek parça olarak oluştur
 st.markdown("""
