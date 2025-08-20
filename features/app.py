@@ -31,8 +31,6 @@ import streamlit.components.v1 as components
 from agents.firebase_db import save_conversation, load_conversations, delete_user_data, save_mood_entry, load_mood_history, firestore, initialize_firebase_app 
 from agents.agent_logic import EmotionalSupportAgent 
 from rag.rag_service import get_rag_retriever, reset_chroma_db
-import agents.agent_logic as al_module # agent_logic modülünü import et
-import streamlit.components.v1 as components
 
 
 # --- Firebase Bağlantısını Başlatma ---
@@ -118,6 +116,9 @@ st.markdown("""
         }
     });
 </script>
+
+font_url = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+st.markdown(f'<link href="{font_url}" rel="stylesheet">', unsafe_allow_html=True)
 <style>
     /* Global renk ve font değişkenleri */
     :root {
@@ -134,8 +135,6 @@ st.markdown("""
         --font-primary: 'Inter', sans-serif;
     }
     
-    /* Gerekli fontu Google'dan import et */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     /* Streamlit'in varsayılan elementlerini gizle */
     [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
@@ -147,26 +146,23 @@ st.markdown("""
         color: var(--text-color);
     }
     
-    /* ---- SLIDER DÜZELTMESİ (EN ÖNEMLİ KISIM) ---- */
-    /* Slider'ın rayını (çubuğunu) görünür yap */
+    /* ---- SLIDER DÜZELTMESİ (KARARLI YÖNTEM) ---- */
     div[data-testid="stSlider"] div[role="slider"] {
-        background-color: var(--accent-color-light); /* Açık mor arka plan */
+        background-color: var(--accent-color-light);
         border-radius: 5px;
-        height: 8px; /* Kalınlık */
+        height: 8px;
     }
-    /* Slider'ın kırmızı noktasını (tutamacını) özelleştir */
-    div[data-testid="stSlider"] .st-emotion-cache-1qg2as2 {
-        background-color: var(--accent-color); /* Ana vurgu rengi */
+    div[data-testid="stSlider"] div[role="slider"] > div:last-of-type {
+        background-color: var(--accent-color);
         border: 3px solid white;
         box-shadow: var(--shadow-soft);
         width: 20px;
         height: 20px;
-        margin-top: -6px; /* Dikeyde ortalamak için */
+        margin-top: -6px;
     }
-    /* Slider'ın aktif (dolu) kısmının rengi */
-     div[data-testid="stSlider"] .st-emotion-cache-u8hs79 {
+    div[data-testid="stSlider"] div[role="slider"] > div:first-of-type {
         background-color: var(--accent-color);
-     }
+    }
     /* ------------------------------------------- */
 
     /* Genel Widget Stilleri */
@@ -229,7 +225,7 @@ st.markdown("""
         margin-bottom: 8px;
     }
 </style>
-<!-- JavaScript kodları tamamen kaldırıldı -->
+st.markdown(css_code, unsafe_allow_html=True)
 </script>
 """, unsafe_allow_html=True)
 
