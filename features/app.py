@@ -96,138 +96,132 @@ st.set_page_config(
 duygu_listesi = ["Belirsiz", "Mutlu", "Üzgün", "Kızgın", "Endişeli", "Yorgun", "Stresli", "Heyecanlı"]
 ihtiyac_listesi = ["Sadece dinlenilmek istiyorum", "Biraz motivasyona ihtiyacım var", "Stresle başa çıkmak için bir yöntem arıyorum", "Odaklanmama yardımcı ol", "Kendimi daha iyi hissetmek istiyorum"]
 # Sayfa yüklendiğinde localStorage'dan tema tercihini kontrol eden JavaScript
-
-st.markdown("""
-<script>
-    // Sayfa yüklendiğinde localStorage'dan tema tercihini kontrol et
-    window.addEventListener('load', function() {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            if (savedTheme === 'dark') {
-                document.documentElement.classList.add('dark-mode-active');
-            } else {
-                document.documentElement.classList.remove('dark-mode-active');
-            }
-        }
-        // Butonun simgesini ilk yüklemede doğru ayarla
-        const themeButtonElement = document.querySelector('[data-testid="stButton"] button[key="theme_toggle_button"]');
-        if (themeButtonElement) {
-            themeButtonElement.innerText = document.documentElement.classList.contains('dark-mode-active') ? '☀️' : '🌙';
-        }
-    });
-</script>
-
 font_url = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+
+# 2. st.markdown: Yukarıdaki Python değişkeni kullanılarak HTML oluşturuluyor ve tarayıcıya gönderiliyor.
 st.markdown(f'<link href="{font_url}" rel="stylesheet">', unsafe_allow_html=True)
-<style>
-    /* Global renk ve font değişkenleri */
-    :root {
-        --bg-color: #F8F9FA; /* Daha yumuşak bir arka plan */
-        --text-color: #212529; /* Daha koyu, okunabilir metin */
-        --accent-color: #6C63FF; /* Canlı bir vurgu rengi */
-        --accent-color-light: #E0E7FF; /* Vurgu renginin açık tonu */
-        --card-bg: #FFFFFF;
-        --border-color: #DEE2E6; /* Hafif bir sınır rengi */
-        --header-bg: linear-gradient(135deg, #6C63FF, #5158E5);
-        --border-radius: 10px;
-        --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        --font-primary: 'Inter', sans-serif;
-    }
-    
 
-    /* Streamlit'in varsayılan elementlerini gizle */
-    [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
-    
-    /* Ana Uygulama Temeli */
-    .stApp {
-        background-color: var(--bg-color);
-        font-family: var(--font-primary);
-        color: var(--text-color);
-    }
-    
-    /* ---- SLIDER DÜZELTMESİ (KARARLI YÖNTEM) ---- */
-    div[data-testid="stSlider"] div[role="slider"] {
-        background-color: var(--accent-color-light);
-        border-radius: 5px;
-        height: 8px;
-    }
-    div[data-testid="stSlider"] div[role="slider"] > div:last-of-type {
-        background-color: var(--accent-color);
-        border: 3px solid white;
-        box-shadow: var(--shadow-soft);
-        width: 20px;
-        height: 20px;
-        margin-top: -6px;
-    }
-    div[data-testid="stSlider"] div[role="slider"] > div:first-of-type {
-        background-color: var(--accent-color);
-    }
-    /* ------------------------------------------- */
+st.markdown(
+    """
+    <style>
 
-    /* Genel Widget Stilleri */
-    .stTextArea textarea, .stSelectbox > div > div, .stTextInput input {
-        border: 1px solid var(--border-color) !important;
-        background-color: var(--card-bg) !important;
-        border-radius: var(--border-radius) !important;
-        color: var(--text-color) !important;
-        box-shadow: none !important;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .stTextArea textarea:focus, .stSelectbox > div > div:focus-within, .stTextInput input:focus {
-        border-color: var(--accent-color) !important;
-        box-shadow: 0 0 0 2px var(--accent-color-light) !important;
-    }
-    
-    /* Butonlar */
-    .stButton > button {
-        background: var(--accent-color) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: var(--border-radius) !important;
-        padding: 0.75rem 1.5rem !important;
-        font-weight: 600 !important;
-        box-shadow: var(--shadow-soft) !important;
-        transition: all 0.2s ease-in-out !important;
-        width: 100%; /* Butonu tam genişlik yap */
-    }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-hover) !important;
-        filter: brightness(1.1);
-    }
+        /* Global renk ve font değişkenleri */
+        :root {
+            --bg-color: #F8F9FA; /* Daha yumuşak bir arka plan */
+            --text-color: #212529; /* Okunabilir metin */
+            --accent-color: #6C63FF; /* Vurgu rengi */
+            --accent-color-light: #E0E7FF; /* Vurgu renginin açık tonu */
+            --card-bg: #FFFFFF;
+            --border-color: #DEE2E6;
+            --header-bg: linear-gradient(135deg, #6C63FF, #5158E5);
+            --border-radius: 10px;
+            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --font-primary: 'Inter', sans-serif;
+        }
 
-    /* İpucu Kutusu (st.info) */
-    div[data-testid="stInfo"] {
-        background-color: var(--accent-color-light);
-        border: none;
-        border-left: 4px solid var(--accent-color);
-        border-radius: var(--border-radius);
-        color: var(--text-color);
-    }
-    div[data-testid="stInfo"] .st-emotion-cache-1xarl3l {
-        color: var(--text-color); /* st.info içindeki metin rengi */
-    }
-    
-    /* Ana Başlık (Duygularınızı Paylaşın) */
-    h2 {
-        font-weight: 700;
-        color: var(--text-color);
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--border-color);
-        margin-bottom: 25px;
-    }
+        /* Varsayılan başlık/toolbar'ı gizle */
+        [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
 
-    /* Diğer Başlıklar (Nasıl Hissediyorsunuz?, Duygu Durumu vb.) */
-    .st-emotion-cache-1q8dd3e {
-        font-size: 1rem;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-</style>
-st.markdown(css_code, unsafe_allow_html=True)
-</script>
-""", unsafe_allow_html=True)
+        /* Ana uygulama temeli */
+        .stApp {
+            background-color: var(--bg-color);
+            font-family: var(--font-primary);
+            color: var(--text-color);
+        }
+
+        /* SLIDER - kararlı seçiciler */
+        div[data-testid="stSlider"] div[role="slider"] {
+            background-color: var(--accent-color-light);
+            border-radius: 5px;
+            height: 8px;
+        }
+        div[data-testid="stSlider"] div[role="slider"] > div:last-of-type {
+            background-color: var(--accent-color);
+            border: 3px solid #fff;
+            box-shadow: var(--shadow-soft);
+            width: 20px;
+            height: 20px;
+            margin-top: -6px;
+        }
+        div[data-testid="stSlider"] div[role="slider"] > div:first-of-type {
+            background-color: var(--accent-color);
+        }
+
+        /* Form alanları - kararlı seçiciler */
+        [data-testid="stTextArea"] textarea,
+        [data-testid="stSelectbox"] > div,
+        [data-testid="stTextInput"] input,
+        .stTextArea textarea,
+        .stSelectbox > div > div,
+        .stTextInput input {
+            border: 1px solid var(--border-color) !important;
+            background-color: var(--card-bg) !important;
+            border-radius: var(--border-radius) !important;
+            color: var(--text-color) !important;
+            box-shadow: none !important;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        [data-testid="stTextArea"] textarea:focus,
+        [data-testid="stSelectbox"] > div:focus-within,
+        [data-testid="stTextInput"] input:focus,
+        .stTextArea textarea:focus,
+        .stSelectbox > div > div:focus-within,
+        .stTextInput input:focus {
+            border-color: var(--accent-color) !important;
+            box-shadow: 0 0 0 2px var(--accent-color-light) !important;
+        }
+
+        /* Butonlar */
+        .stButton > button {
+            background: var(--accent-color) !important;
+            color: #fff !important;
+            border: none !important;
+            border-radius: var(--border-radius) !important;
+            padding: 0.75rem 1.5rem !important;
+            font-weight: 600 !important;
+            box-shadow: var(--shadow-soft) !important;
+            transition: all 0.2s ease-in-out !important;
+            width: 100%;
+        }
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover) !important;
+            filter: brightness(1.1);
+        }
+
+        /* İpucu Kutusu (st.info) */
+        div[data-testid="stInfo"] {
+            background-color: var(--accent-color-light);
+            border: none;
+            border-left: 4px solid var(--accent-color);
+            border-radius: var(--border-radius);
+            color: var(--text-color);
+        }
+        div[data-testid="stInfo"] * { color: var(--text-color) !important; }
+
+        /* Başlıklar */
+        h2 {
+            font-weight: 700;
+            color: var(--text-color);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 25px;
+        }
+
+        /* Form etiketleri için kararlı seçiciler */
+        [data-testid="stSelectbox"] label,
+        [data-testid="stSlider"] label,
+        [data-testid="stTextArea"] label,
+        [data-testid="stTextInput"] label {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+    </style>
+    """,
+    css_code,unsafe_allow_html=True,
+)
 
 
 # --- YARDIMCI FONKSİYONLAR ---
