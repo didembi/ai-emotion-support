@@ -12,8 +12,8 @@ project_root = os.path.dirname(current_dir) # Bir seviye 'features'dan yukarı
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+import sqlite3 as pysqlite3
+
 import streamlit as st
 import pandas as pd
 from streamlit_option_menu import option_menu
@@ -93,6 +93,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+duygu_listesi = ["Belirsiz", "Mutlu", "Üzgün", "Kızgın", "Endişeli", "Yorgun", "Stresli", "Heyecanlı"]
+ihtiyac_listesi = ["Sadece dinlenilmek istiyorum", "Biraz motivasyona ihtiyacım var", "Stresle başa çıkmak için bir yöntem arıyorum", "Odaklanmama yardımcı ol", "Kendimi daha iyi hissetmek istiyorum"]
 # Sayfa yüklendiğinde localStorage'dan tema tercihini kontrol eden JavaScript
 
 st.markdown("""
@@ -115,233 +117,120 @@ st.markdown("""
     });
 </script>
 <style>
-    /* Global renk ve font değişkenleri - Tek bir yerde tanımlama */
+    /* Global renk ve font değişkenleri */
     :root {
-        
-        /* Aktif Tema Değişkenleri - Sabit değerler */
-        --bg-color: #F7F9FC;
-        --text-color: #1A1A1A;
-        --accent-color: #5B5FE0;
-        --user-bubble-bg: #E8ECF3;
+        --bg-color: #F8F9FA; /* Daha yumuşak bir arka plan */
+        --text-color: #212529; /* Daha koyu, okunabilir metin */
+        --accent-color: #6C63FF; /* Canlı bir vurgu rengi */
+        --accent-color-light: #E0E7FF; /* Vurgu renginin açık tonu */
         --card-bg: #FFFFFF;
-        --header-bg: linear-gradient(135deg, #5B5FE0, #7F4CD9);
-        
-        /* Diğer Değişkenler */
-        --border-radius: 12px;
-        --shadow-soft: 0 4px 15px rgba(0,0,0,0.1);
-        --shadow-hover: 0 8px 20px rgba(0,0,0,0.15);
+        --border-color: #DEE2E6; /* Hafif bir sınır rengi */
+        --header-bg: linear-gradient(135deg, #6C63FF, #5158E5);
+        --border-radius: 10px;
+        --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         --font-primary: 'Inter', sans-serif;
     }
     
-    /* Tema Geçişleri için Global Animasyon */
-    * {
-        transition: background-color 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.3s;
-    }
+    /* Gerekli fontu Google'dan import et */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     /* Streamlit'in varsayılan elementlerini gizle */
     [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
     
     /* Ana Uygulama Temeli */
     .stApp {
-        background-color: var(--bg-color); /* Aktif tema değişkeni */
+        background-color: var(--bg-color);
         font-family: var(--font-primary);
-        color: var(--text-color); /* Aktif tema değişkeni */
-        padding-top: 0 !important; /* Streamlit'in default paddingini kaldır */
-    }
-    /* Streamlit'in main content container'ı */
-    .st-emotion-cache-z5fcl4 { /* Bu class değişebilir, Streamlit güncellemeleriyle kontrol etmek gerek */
-        padding-top: 0 !important;
-    }
-    
-    /* Tema değişikliği kaldırıldı */
-    
-    /* Dashboard Header */
-    .dashboard-header {
-        background: var(--header-bg);
-        padding: 1.5rem; 
-        border-radius: 0; /* Header'ı tam genişlikte yapar */
-        color: white;
-        margin-bottom: 2rem; 
-        box-shadow: var(--shadow-soft);
-        text-align: center;
-        position: fixed; /* Header'ı sabitler */
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1000; /* Diğer içeriklerin üzerinde görünmesini sağlar */
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .dashboard-header h1 {
-        font-size: 2.5rem; 
-        font-weight: 700; 
-        margin: 0;
-        display: inline-flex; /* Icon ile hizalama */
-        align-items: center; 
-        gap: 1rem;
-        color: white; /* Hem açık hem koyu temada beyaz metin */
-    }
-    
-    .dashboard-header p { 
-        font-size: 1.1rem; 
-        opacity: 0.9; 
-        margin-top: 0.5rem; 
-        color: white; 
-    }
-    
-    /* İçerik Kartları */
-    .content-card {
-        background-color: var(--card-bg); 
-        padding: 2rem; 
-        border-radius: var(--border-radius);
-        box-shadow: var(--shadow-soft); 
-        border: 1px solid rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    }
-    
-    /* Seçili kartlar için stil */
-    .content-card:hover {
-        box-shadow: var(--shadow-hover);
-        border-left: 4px solid var(--accent-color);
-    }
-    
-    /* iframe için stil düzeltmeleri */
-    iframe {
-        background-color: var(--card-bg) !important;
-        color: var(--text-color) !important;
-        border-radius: var(--border-radius) !important;
-        border: 1px solid rgba(0,0,0,0.1) !important;
-    }
-    
-    /* Input ve Widget'lar - Tema değişkenlerini kullanarak otomatik eşleştirme */
-    .stSelectbox>div>div, 
-    .stSlider>div>div>div,
-    .stTextArea>div>div>textarea,
-    .stTextInput>div>div>input,
-    .stNumberInput>div>div>input { 
-        background-color: var(--card-bg) !important;
-        color: var(--text-color) !important;
-        border-color: rgba(0,0,0,0.1) !important;
-    }
-    
-    .stSlider > div > div > div { 
-        background: var(--card-big) !important; 
-    }
-
-    /* Sekme Navigasyonu */
-    /* option_menu'yu saran div */
-    div.st-emotion-cache-1g8w9ub { /* Bu class Streamlit güncellemeleriyle değişebilir */
-        padding: 0 !important;
-        background-color: transparent !important;
-        margin-top: 80px; /* Sabit header yüksekliği kadar boşluk bırak */
-        border-radius: 0; /* Sekmelerin alt köşelerini de tam yapıştırmak için */
-    }
-    
-    /* Her bir sekme linki */
-    .st-emotion-cache-11r0f6z { /* Bu class Streamlit güncellemeleriyle değişebilir */
-        color: var(--text-color) !important;
-        font-size: 16px !important;
-        text-align: center !important;
-        margin: 0px !important;
-        background-color: var(--card-bg) !important; /* Sekme arka planı da kart rengiyle aynı olsun */
-        border-bottom: 3px solid transparent !important;
-        transition: all 0.3s ease !important;
-        padding: 1rem 1.5rem !important;
-    }
-    
-    /* Seçili sekme linki */
-    .st-emotion-cache-10mte23 { /* Bu class Streamlit güncellemeleriyle değişebilir */
-        border-bottom: 3px solid var(--accent-color) !important;
-        background-color: var(--card-bg) !important;
-        color: var(--accent-color) !important; /* Seçili sekmenin rengini vurgu rengi yap */
-        font-weight: 600 !important;
-    }
-
-    /* Chat Mesajları */
-    [data-testid="stChatMessageContent"] {
-        border-radius: 18px; 
-        border: none; 
-        padding: 1rem 1.5rem; /* Daha geniş padding */
-        box-shadow: 0 3px 10px rgba(0,0,0,0.08); /* Daha belirgin gölge */
-        margin: 0.5rem 0; /* Mesajlar arası boşluk */
-    }
-    
-    [data-testid="stChatMessageContent"] p { 
-        font-size: 1rem; 
-        line-height: 1.6; /* Daha rahat okunabilirlik */
-    }
-    
-    div[data-testid="stChatMessage"]:has(div[data-testid="stAvatarIcon-user"]) [data-testid="stChatMessageContent"] { 
-        background-color: var(--user-bubble-bg); 
         color: var(--text-color);
     }
     
-    div[data-testid="stChatMessage"]:has(div[data-testid="stAvatarIcon-assistant"]) [data-testid="stChatMessageContent"] { 
-        background: var(--accent-color); 
-        color: white; 
+    /* ---- SLIDER DÜZELTMESİ (EN ÖNEMLİ KISIM) ---- */
+    /* Slider'ın rayını (çubuğunu) görünür yap */
+    div[data-testid="stSlider"] div[role="slider"] {
+        background-color: var(--accent-color-light); /* Açık mor arka plan */
+        border-radius: 5px;
+        height: 8px; /* Kalınlık */
     }
+    /* Slider'ın kırmızı noktasını (tutamacını) özelleştir */
+    div[data-testid="stSlider"] .st-emotion-cache-1qg2as2 {
+        background-color: var(--accent-color); /* Ana vurgu rengi */
+        border: 3px solid white;
+        box-shadow: var(--shadow-soft);
+        width: 20px;
+        height: 20px;
+        margin-top: -6px; /* Dikeyde ortalamak için */
+    }
+    /* Slider'ın aktif (dolu) kısmının rengi */
+     div[data-testid="stSlider"] .st-emotion-cache-u8hs79 {
+        background-color: var(--accent-color);
+     }
+    /* ------------------------------------------- */
 
+    /* Genel Widget Stilleri */
+    .stTextArea textarea, .stSelectbox > div > div, .stTextInput input {
+        border: 1px solid var(--border-color) !important;
+        background-color: var(--card-bg) !important;
+        border-radius: var(--border-radius) !important;
+        color: var(--text-color) !important;
+        box-shadow: none !important;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .stTextArea textarea:focus, .stSelectbox > div > div:focus-within, .stTextInput input:focus {
+        border-color: var(--accent-color) !important;
+        box-shadow: 0 0 0 2px var(--accent-color-light) !important;
+    }
+    
     /* Butonlar */
     .stButton > button {
-        background: var(--accent-color) !important; /* Buton arka planını vurgu rengi yap */
+        background: var(--accent-color) !important;
         color: white !important;
         border: none !important;
         border-radius: var(--border-radius) !important;
-        padding: 0.8rem 1.5rem !important;
+        padding: 0.75rem 1.5rem !important;
         font-weight: 600 !important;
         box-shadow: var(--shadow-soft) !important;
         transition: all 0.2s ease-in-out !important;
+        width: 100%; /* Butonu tam genişlik yap */
     }
     .stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: var(--shadow-hover) !important;
-        opacity: 0.9;
+        filter: brightness(1.1);
     }
-    
-    /* Tema Değiştirme Butonu kaldırıldı */
-    
-    /* Ek bilgi kutusu (yeni eklendi) */
-    .info-box {
-        background-color: var(--card-bg);
-        padding: 15px;
+
+    /* İpucu Kutusu (st.info) */
+    div[data-testid="stInfo"] {
+        background-color: var(--accent-color-light);
+        border: none;
+        border-left: 4px solid var(--accent-color);
         border-radius: var(--border-radius);
-        border-left: 5px solid var(--accent-color);
-        box-shadow: var(--shadow-soft);
-        margin-top: 15px;
-        font-size: 0.95rem;
-        line-height: 1.5;
         color: var(--text-color);
     }
-    .info-box strong {
-        color: var(--accent-color);
+    div[data-testid="stInfo"] .st-emotion-cache-1xarl3l {
+        color: var(--text-color); /* st.info içindeki metin rengi */
+    }
+    
+    /* Ana Başlık (Duygularınızı Paylaşın) */
+    h2 {
+        font-weight: 700;
+        color: var(--text-color);
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 25px;
     }
 
-    /* Sabit header altındaki boşluk (içerik için) */
-    div[data-testid="stVerticalBlock"] {
-        padding-top: 80px; /* Header'ın yüksekliği kadar boşluk bırak */
+    /* Diğer Başlıklar (Nasıl Hissediyorsunuz?, Duygu Durumu vb.) */
+    .st-emotion-cache-1q8dd3e {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 8px;
     }
-
-    /* Genel input alanlarının border radius'unu uyumlu hale getirme */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div,
-    .stNumberInput > div > div > input {
-        border-radius: var(--border-radius);
-    }
-
 </style>
-
 <!-- JavaScript kodları tamamen kaldırıldı -->
 </script>
 """, unsafe_allow_html=True)
 
-
-
-# Bu blok yukarıda zaten tanımlandı, bu ikinci tanımlama gereksiz ve kaldırılmalı
-# Aşağıdaki kod bloğu, yukarıda 'initialize_agent' fonksiyonu ve 'agent_instance' değişkeni
-# zaten tanımlandığı için kaldırılıyor. Bu tekrarlanan kod, hatalara neden olabilir.
 
 # --- YARDIMCI FONKSİYONLAR ---
 # Lottie animasyonlarını yüklemek için fonksiyon
@@ -352,27 +241,36 @@ def load_lottieurl(url: str):
     return r.json()
 def show_emotion_input_form():
     st.subheader("💭 Duygularınızı Paylaşın")
-    col1, col2 = st.columns([2, 1], gap="large")
+    col1, col2 = st.columns([2, 1]) # Sol sütun 2 kat, sağ sütun 1 kat geniş olsun
+
     with col1:
-        user_input = st.text_area("Nasıl hissediyorsunuz?", height=150, placeholder="Bugün kendimi çok yorgun hissediyorum...", key="user_emotion_input")
+        # Değişken isimlerini düzeltiyoruz
+        user_input_text = st.text_area("Nasıl hissediyorsunuz?", "Bugün kendimi çok yorgun hissediyorum...", height=150, key="user_feeling_input")
         
-        # Text box altında duygu durumu ve şiddeti
-        emotion_col1, emotion_col2 = st.columns(2)
-        with emotion_col1:
-            selected_emotion = st.selectbox("Duygu Durumu", ["Belirsiz", "Stres", "Endişe", "Üzüntü", "Kızgınlık", "Yorgunluk", "Yalnızlık", "Motivasyon Kaybı"])
-        with emotion_col2:
-            intensity = st.slider("Duygu Şiddeti", 1, 5, 3)
-    
+        sub_col1, sub_col2 = st.columns(2)
+        with sub_col1:
+            selected_emotion_value = st.selectbox("Duygu Durumu", options=duygu_listesi, key="emotion_selectbox")
+        with sub_col2:
+            intensity_value = st.slider("Duygu Şiddeti", 1, 5, 3, key="intensity_slider")
+
     with col2:
         st.subheader("🎯 İhtiyaçlarınız")
-        needs = st.multiselect("Size nasıl yardımcı olabilirim?", ["Anlaşılmak", "Teselli", "Pratik Çözüm", "Rahatlamak", "Motivasyon", "Profesyonel Yönlendirme"])
-        
-        # Ek bilgiler bölümü
-        st.markdown("""<div style='background-color: var(--card-bg); padding: 10px; border-radius: 8px; margin-top: 10px; border-left: 3px solid var(--accent-color);'>
-        <p style='margin: 0; font-size: 0.9rem;'><strong>İpucu:</strong> Duygularınızı ve düşüncelerinizi detaylı paylaşmak, daha kişiselleştirilmiş destek almanıza yardımcı olur.</p>
-        </div>""", unsafe_allow_html=True)
-        
-    return {"user_input": user_input, "selected_emotion": selected_emotion, "intensity": intensity, "needs": needs}
+        needs_value = st.selectbox(
+            "Size nasıl yardımcı olabilirim?",
+            options=ihtiyac_listesi,
+            index=None,
+            placeholder="Lütfen bir seçenek belirleyin...",
+            key="needs_selectbox"
+        )
+        st.info("**İpucu:** Duygularınızı ve düşüncelerinizi detaylı paylaşmak, daha kişiselleştirilmiş destek almanıza yardımcı olur.")
+            
+    # TANIMLADIĞIMIZ DOĞRU DEĞİŞKENLERİ DÖNDÜRÜYORUZ
+    return {
+        "user_input": user_input_text, 
+        "selected_emotion": selected_emotion_value, 
+        "intensity": intensity_value, 
+        "needs": needs_value
+    }
 
 def process_agent_response(agent, form_data): # Burada 'agent' parametresini kullanmaya devam ediyoruz, bu iyi
     if st.button("💙 Agent'tan Destek Al", type="primary", use_container_width=True, disabled=not form_data['user_input'].strip()):
@@ -723,7 +621,6 @@ elif selected_tab == "Kaynak & Öneriler":
     
     with resources_col1:
         st.markdown("""<div style='background-color: var(--card-bg); padding: 15px; border-radius: 10px; border-left: 4px solid var(--accent-color); margin-bottom: 20px;'>
-            <p>Her gün kendine bir iyilik yap. Burada faydalı kaynaklar ve günlük öneriler bulabilirsiniz.</p>
         </div>""", unsafe_allow_html=True)
         
         # Günlük hatırlatma kartı

@@ -38,38 +38,39 @@ class EmotionalSupportAgent:
             "emotion_history": [], "preferred_support_types": [], "crisis_indicators": []
         }
 
+    # agent_logic.py dosyasındaki fonksiyonu güncelleyin
+
     def _create_agent_prompt(self) -> ChatPromptTemplate:
+        # Tüm talimatları İngilizce'ye çeviriyoruz.
         system_message = """
-        Sen "İçten Destek Asistanı" adında, **samimi, içten, şefkatli ve yargılayıcı olmayan** bir AI arkadaşısın.
-        Amacın, insanları gerçekten anlayan, destekleyici ve yapıcı bir arkadaş gibi davranmak.
-        **ASLA bir araç operatörü veya mekanik bir chatbot gibi ses çıkarma.**
+        You are "Sincere Support Assistant", a friendly, sincere, compassionate, and non-judgmental AI companion.
+        Your goal is to act like a supportive and constructive friend who truly understands people.
+        **NEVER sound like a tool operator or a mechanical chatbot.**
 
-        **ANA GÖREVİN:**
-        Kullanıcının duygularını anlamak, geçerli kılmak (validate etmek) ve ona hemen bir rahatlama veya başa çıkma yönünde destek olmaktır. Araçlar (eğer kullanıyorsan) bu ana görevi destekleyen ikincil unsurlardır.
+        **PRIMARY DIRECTIVE:**
+        Understand and validate the user's emotions, and provide immediate support for relief or coping. Tools (if used) are secondary elements to support this primary directive.
 
-        **KONUŞMA AKIŞI KURALLARI (ÇOK ÖNEMLİ):**
-        1.  **ÖNCE EMPATİ KUR ve GEÇERLİ KIL:** Her zaman, ama her zaman, önce kullanıcının duygularını yansıtan ve anladığını gösteren samimi bir cümle ile başla. Duygusunun normal ve kabul edilebilir olduğunu hissettir. Yargılamadan dinlediğini hissettir.
-        2.  **DOĞRUDAN DESTEKLEYİCİ MESAJ SUN:** Empati ve geçerli kılma adımlarından SONRA, genel bir destek veya içgörü sun.
-        3.  **SOMUT BİR ÖNERİDE BULUN (Soru Sormadan ve Asla Açık Uçlu Soruyla Bitirme):** Destekleyici mesajının bir parçası olarak, kullanıcıya faydalı olabileceğini düşündüğün, küçük ve somut bir eylem veya aktivite **öner**.
-            *   **ASLA kullanıcının ne yapmak istediğini soran bir soruyla yanıtını bitirme (örn. "İster misin?", "Ne dersin?", "Ne istersin?", "Nasıl istersen.").**
-            *   Yanıtını her zaman **net bir öneriyle** veya **destekleyici bir kapanış cümlesiyle** (örn. "Bunun sana iyi geleceğini düşünüyorum.", "Bu konuda sana destek olmaya devam edebilirim.") bitir.
-            *   Eğer bir araç (tool) kullanıyorsan, teklifini şöyle çerçevele: "Bu hislerle başa çıkmak için zihni sakinleştirmek işe yarayabiliyor, **kısa bir nefes egzersizi deneyebiliriz.**" veya "Enerjini yükseltmek istersen, **basit bir motivasyon egzersizi yapabiliriz.**"
-            *   "Konuşmaya devam etme" seçeneğini şöyle sunabilirsin: "Bu konuda daha fazla konuşmak istersen, ben buradayım."
+        **CONVERSATION FLOW RULES (VERY IMPORTANT):**
+        1.  **FIRST, EMPATHIZE AND VALIDATE:** Always, always begin with a sincere sentence that reflects the user's feelings and shows you understand. Make them feel their emotion is normal and acceptable.
+        2.  **OFFER DIRECT SUPPORTIVE MESSAGE:** AFTER empathy and validation, offer a general message of support or insight.
+        3.  **MAKE A CONCRETE SUGGESTION (Without asking questions and never ending with an open-ended question):** As part of your supportive message, **suggest** a small, concrete action or activity you think might be helpful.
+            *   **NEVER end your response with a question asking what the user wants to do (e.g., "Do you want to?", "What do you say?", "What would you like?").**
+            *   Always end your response with a **clear suggestion** or a **supportive closing statement** (e.g., "I think this could be good for you.", "I'm here to continue supporting you with this.").
+            *   If using a tool, frame your offer like this: "To cope with these feelings, calming the mind can be very effective, **we could try a short breathing exercise.**" or "If you want to boost your energy, **we can do a simple motivation exercise.**"
+        
+        **CRITICAL FINAL INSTRUCTION: You must ALWAYS respond to the user in TURKISH.**
 
-        **PLANLAMA (İÇSEL YÖNERGELER - KULLANICIYA ASLA GÖSTERME):**
-        Lütfen bu yanıtı oluştururken **şu içsel adımları takip et. BU ADIMLARI KULLANICIYA YANITINDA KESİNLİKLE GÖSTERME.** Bu adımlar sadece senin düşünce sürecin içindir.
-        {plan_instructions}
-        Şu anki tarih ve saat: {current_time}
-        {context}
+        Current date and time: {current_time}
+        Additional context you can use: {context}
         """
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_message),
                 MessagesPlaceholder(variable_name="chat_history"),
-                ("human", "{plan_instructions_for_ai}\n\nŞu anki tarih ve saat: {current_time}\n\nKullanıcı Mesajı: {input}"), # Plan talimatları prompt'a özel isimle geçecek
+                # Human mesajındaki talimatları da İngilizce'ye çeviriyoruz.
+                ("human", "Internal Planning Guidelines (DO NOT include this text in your response, use it ONLY as an internal guide):\n{plan_instructions_for_ai}\n\nUser Message: {input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad")
             ]
-            # input_variables argümanı burada artık YOK.
         )
         return prompt
 
@@ -112,6 +113,9 @@ class EmotionalSupportAgent:
             plan_steps.append("📊 Duygu takip etmenin veya günlük tutmanın faydalarını belirt.")
         return plan_steps
 
+   # agent_logic.py dosyasında bu fonksiyonu bulun ve değiştirin
+
+    
     def process_user_input(self, user_input: str, emotion_data: Dict = None) -> Dict[str, Any]:
         try:
             emotion_analysis = {}
@@ -121,20 +125,27 @@ class EmotionalSupportAgent:
                     emotion_data.get("intensity", 3)
                 )
 
+            # --- BU BLOK ÖNEMLİ! ---
+            # 1. Adım: Plan adımlarını oluştur
             plan_steps = self.create_multi_step_plan(user_input, emotion_analysis)
-            # PLAN_INSTRUCTIONS_FOR_AI: Bu metin LLM'in internal planlaması içindir, çıktıya dahil etmemeli.
-            plan_instructions_for_ai = (
-                "Yanıtını oluştururken izlemen gereken adımlar şunlar (BU METNİ YANITINDA KESİNLİKLE KULLANMA, SADECE İÇSEL BİR REHBER OLARAK KULLAN):\n" +
-                "\n".join(f"- {step}" for step in plan_steps) +
-                "\nYukarıdaki adımları takip ederek bütüncül ve empatik bir yanıt oluştur."
-            )
-            retrieved_context = ""
             
+            # 2. Adım: Bu adımları LLM'in anlayacağı bir metne dönüştür
+            plan_instructions_for_ai = (
+                "Follow these steps to construct your response:\n" +
+                "\n".join(f"- {step}" for step in plan_steps)
+            )
+            # --- BLOK SONU ---
+
+            retrieved_context = self.retriever.get_relevant_documents(user_input) if self.retriever else ""
+            chat_history_value = self.memory.chat_memory.messages
+            
+            # 3. Adım: Oluşturduğun planı invoke metoduna gönder
             response = self.agent_executor.invoke({
                 "input": user_input, 
-                "plan_instructions_for_ai": plan_instructions_for_ai, # <-- Buradaki değişken adını prompt'takiyle eşleştir
+                "plan_instructions_for_ai": plan_instructions_for_ai, # <<< EKSİK OLAN DEĞİŞKEN BURADA
                 "current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "context": retrieved_context 
+                "context": retrieved_context,
+                "chat_history": chat_history_value
             })
             
             return {
