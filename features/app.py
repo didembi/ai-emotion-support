@@ -12,7 +12,9 @@ project_root = os.path.dirname(current_dir) # Bir seviye 'features'dan yukarı
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-import sqlite3 as pysqlite3
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 import streamlit as st
 import pandas as pd
